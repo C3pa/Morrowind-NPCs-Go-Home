@@ -51,8 +51,7 @@ end
 
 ---@param ref tes3reference
 local function isVampire(ref)
-	if tes3.isAffectedBy({ reference = ref, effect = tes3.effect.vampirism }) then
-		-- local isVampire = mwscript.getSpellEffects({reference = npc, spell = "vampire sun damage"})
+	if ref.mobile and tes3.isAffectedBy({ reference = ref, effect = tes3.effect.vampirism }) then
 		return true
 	end
 	local npc = ref.baseObject
@@ -109,6 +108,19 @@ function util.buildFollowerTable()
 	return followers
 end
 
+-- todo: more quest aware checks like this
+local function fargothCheck()
+	local fargothJournal = tes3.getJournalIndex({ id = "MS_Lookout" })
+	if not fargothJournal then return false end
+
+	-- only disable Fargoth before speaking to Hrisskar, and after observing Fargoth sneak
+	local isActive = fargothJournal > 10 and fargothJournal <= 30
+
+	log:trace("Fargoth journal check, %s is active: %s", fargothJournal, isActive)
+
+	return isActive
+end
+
 ---@param npcRef tes3reference
 function util.isIgnoredNPC(npcRef)
 	local npc = npcRef.baseObject and npcRef.baseObject or npcRef.object
@@ -125,7 +137,7 @@ function util.isIgnoredNPC(npcRef)
 
 	-- TODO: implement quest-based exceptions
 	local isFargoth = npc.id:match("fargoth")
-	local isFargothActive = isFargoth and this.fargothCheck() or false
+	local isFargothActive = isFargoth and fargothCheck() or false
 	local isClassBlacklisted = config.classBlacklist[npc.class.id:lower()]
 	local isFollower = runtimeData.followers[npcRef.object.id]
 	log:trace("Checking NPC: %s (%s or %s): \z

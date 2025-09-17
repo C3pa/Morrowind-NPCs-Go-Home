@@ -286,7 +286,7 @@ end
 local function iteratePets(cell)
 	local function iterator()
 		for creature in cell:iterateReferences(tes3.objectType.creature) do
-			local isPet, linkedToTravel = util.isNPCPet(creature)
+			local isPet, linkedToTravel = util.isPet(creature)
 			if isPet then
 				coroutine.yield(creature, linkedToTravel)
 			end

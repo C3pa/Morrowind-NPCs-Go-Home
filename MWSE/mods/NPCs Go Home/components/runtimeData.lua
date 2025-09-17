@@ -2,26 +2,29 @@ local cellTypeUtil = require("NPCs Go Home.util.cellTypeUtil")
 local npcEvaluator = require("NPCs Go Home.components.npcEvaluator")
 local positions = require("NPCs Go Home.data.positions")
 
+---@alias NPCsGoHome.publicHouseMap table<string, NPCsGoHome.publicHouseData>
 
 local log = mwse.Logger.new()
 local runtimeData = {
-	-- cells marked as public
+	-- Cells marked as public
 	publicHouses = {
-		-- used for caching public houses to avoid reiterating NPCs
+		-- Used for caching public houses to avoid reiterating NPCs
+		---@type table<string, NPCsGoHome.publicHouseMap>
 		byName = {},
-		-- used for picking cells to move NPCs to
+		-- Used for picking cells to move NPCs to
+		---@type table<string, table<NPCsGoHome.publicHouseType, NPCsGoHome.publicHouseMap>>
 		byType = {}
 	},
-	-- homes picked for NPCs
+	-- Homes picked for NPCs
 	homes = {
-		-- used for caching homes to avoid reiterating NPCs
+		-- Used for caching homes to avoid reiterating NPCs
 		--- @type table<string, NPCsGoHome.movedNPCData>
 		byName = {},
-		-- used for checking when entering wandering NPC's house, will probably remove
+		-- Used for checking when entering wandering NPC's house, will probably remove
 		--- @type table<string, NPCsGoHome.movedNPCData>
 		byCell = {}
 	},
-	-- holder for all NPC data
+	-- Holder for all NPC data
 	NPCs = {
 		-- NPCs who have been moved
 		--- @type table<string, table<string, NPCsGoHome.movedNPCData>>
@@ -57,6 +60,7 @@ function runtimeData.insertPublicHouse(publicCell, proprietor, city, name, cellW
 
 	local proprietorName = proprietor and proprietor.object.name or "no one"
 
+	---@class NPCsGoHome.publicHouseData
 	local data = {
 		name = name,
 		city = city,

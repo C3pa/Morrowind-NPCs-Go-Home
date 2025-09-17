@@ -6,26 +6,17 @@ local log = mwse.Logger.new()
 local lockDoors = {}
 
 ---@param cell tes3cell
----@return fun(): tes3reference
-local function iterateDoors(cell)
-	local function iterator()
-		for door in cell:iterateReferences(tes3.objectType.door) do
-			if not util.isIgnoredDoor(door, cell.id) then
-				coroutine.yield(door)
-			end
-		end
-	end
-	return coroutine.wrap(iterator)
-end
-
----@param cell tes3cell
 function lockDoors.processDoors(cell)
 	log:info("Looking for doors to process in cell: %s", cell.id)
 
 	local isNight = util.isNight()
 
 	if config.lockDoors and isNight then
-		for door in iterateDoors(cell) do
+		for door in cell:iterateReferences(tes3.objectType.door) do
+			if util.isIgnoredDoor(door, cell.id) then
+				goto continue
+			end
+
 			if not door.data.NPCsGoHome then
 				door.data.NPCsGoHome = {}
 			end
@@ -48,6 +39,8 @@ function lockDoors.processDoors(cell)
 			end
 
 			log:trace("New lock status: %s", tes3.getLocked({ reference = door }))
+
+			:: continue ::
 		end
 		return
 	end

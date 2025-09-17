@@ -171,7 +171,7 @@ local function onCellChanged(e)
 	checkEnteredNPCHome(e.cell)
 	-- Exterior wilderness cells don't have name
 	if not e.cell.name then return end
-	checkEnteredPublicHouse(e.cell, common.split(e.cell.name, ",")[1])
+	checkEnteredPublicHouse(e.cell, string.split(e.cell.name, ",")[1])
 end
 event.register(tes3.event.cellChanged, onCellChanged)
 
@@ -211,7 +211,7 @@ local function onKeyDown(e)
 		-- ? doesn't crash my barely modded testing setup though
 		-- log(common.logLevels.none, json.encode(common.runtimeData, { indent = true }))
 		-- inspect handles userdata and tables within tables badly
-		log:debug(common.inspect(common.runtimeData))
+		log:debug("runtimeData = %s", runtimeData)
 		return
 	end
 	if tes3.isKeyEqual({ actual = e, expected = { keyCode = tes3.scanCode.c, isControlDown = true } }) then
