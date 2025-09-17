@@ -1,241 +1,224 @@
--- {{{ other files
--- todo: too many things require too many other things, needs fix
-local config = require("celediel.NPCsGoHome.config").getConfig()
-local common = require("celediel.NPCsGoHome.common")
-local checks = require("celediel.NPCsGoHome.functions.checks")
-local processors = require("celediel.NPCsGoHome.functions.processors")
-local interop = require("celediel.NPCsGoHome.interop")
--- }}}
+local config = require("NPCs Go Home.config")
 
--- {{{ variables and such
+local log = mwse.Logger.new({
+	name = "NPCs Go Home",
+	logLevel = config.logLevel,
+})
 
--- timers
-local updateTimer
-local postDialogueTimer
+local cellTypeUtil = require("NPCs Go Home.util.cellTypeUtil")
+local enum = require("NPCs Go Home.enum")
+local goHome = require("NPCs Go Home.components.goHome")
+local lockDoors = require("NPCs Go Home.components.lockDoors")
+local runtimeData = require("NPCs Go Home.components.runtimeData")
+local util = require("NPCs Go Home.util")
+dofile("NPCs Go Home.mcm")
 
--- }}}
 
--- {{{ helper functions
-local function log(level, ...) if config.logLevel >= level then common.log(...) end end
-local function message(...) if config.showMessages then tes3.messageBox(...) end end
-
--- build a list of followers on cellChange
-local function buildFollowerList()
-    local f = {}
-    -- build our followers list
-    for friend in tes3.iterate(tes3.mobilePlayer.friendlyActors) do
-        -- todo: check for ignored NPCs if followers list is ever used for anything other than part of checks.ignoredNPC()
-        if friend ~= tes3.mobilePlayer then -- ? why is the player friendly towards the player ?
-            f[friend.object.id] = true
-            log(common.logLevels.large, "[MAIN] %s is follower", friend.object.id)
-        end
-    end
-    return f
+local function message(...)
+	if config.showMessages then
+		tes3.messageBox(...)
+	end
 end
 
--- {{{ cell change checks
-
+-- TODO: this is only a debugging function.
+---@param cell tes3cell
 local function checkEnteredNPCHome(cell)
-    local home = common.runtimeData.homes.byCell[cell.id]
-    if home then
-        local msg = string.format("Entering home of %s, %s", home.name, home.homeName)
-        log(common.logLevels.small, "[MAIN] " .. msg)
-        -- message(msg) -- this one is mostly for debugging, so it doesn't need to be shown
-    end
+	if log.level < mwse.logLevel.info then return end
+	local home = runtimeData.homes.byCell[cell.id]
+	if not home then return end
+	log:info("Entering home of %s, %s", home.name, home.homeName)
 end
 
+-- TODO: more robust trespass checking... maybe take faction and rank into account?
+-- maybe something like faction members you outrank don't mind you being in their house
+-- also whether guildhalls are public or not, members can come and go as they please
+-- TODO maybe an esp with keys for guildhalls that are added when player joins or reaches a certain rank?
+-- TODO: maybe re-implement some or all features of Trespasser
+---@param cell tes3cell
+---@param previousCell tes3cell
+local function updatePlayerTrespass(cell, previousCell)
+	cell = cell or tes3.player.cell
+
+	local inCity = previousCell and (previousCell.id:match(cell.id) or cell.id:match(previousCell.id))
+
+	if util.isInteriorCell(cell) and not util.isIgnoredCell(cell) and not util.isPublicHouse(cell) and inCity then
+		if util.isNight() then
+			tes3.player.data.NPCsGoHome.intruding = true
+		else
+			tes3.player.data.NPCsGoHome.intruding = false
+		end
+	else
+		tes3.player.data.NPCsGoHome.intruding = false
+	end
+	log:info("Updating player trespass status to %s", tes3.player.data.NPCsGoHome.intruding)
+end
+
+---@param cell tes3cell
+---@param city string
 local function checkEnteredPublicHouse(cell, city)
-    local typeOfPub = common.pickPublicHouseType(cell)
+	local typeOfPub = cellTypeUtil.pickPublicHouseType(cell)
 
-    local publicHouse = common.runtimeData.publicHouses.byName[city] and
-                            common.runtimeData.publicHouses.byName[city][cell.id]
+	local publicHouse = runtimeData.publicHouses.byName[city] and
+		runtimeData.publicHouses.byName[city][cell.id]
 
-    if publicHouse then
-        local msg = string.format("Entering public space %s, a%s %s in the town of %s.", publicHouse.name,
-                                  common.vowel(typeOfPub), typeOfPub:gsub("s$", ""), publicHouse.city)
+	if publicHouse then
+		local pubTypeName = table.find(enum.publicHouse, typeOfPub) --[[@as string]]
+		local msg = string.format("Entering public space %s, a%s %s in the town of %s.", publicHouse.name,
+			util.vowel(pubTypeName), pubTypeName:gsub("s$", ""), publicHouse.city)
 
-        -- todo: check for more servicers, not just proprietor
-        if publicHouse.proprietor and checks.isServicer(publicHouse.proprietor) then
-            msg = msg ..
-                      string.format(" Talk to %s, %s for services.", publicHouse.proprietor.object.name,
-                                    publicHouse.proprietor.object.class)
-        end
+		-- TODO: check for more servicers, not just proprietor
+		if publicHouse.proprietor and util.isServicer(publicHouse.proprietor) then
+			msg = msg .. string.format(" Talk to %s, %s for services.", publicHouse.proprietor.object.name,
+				publicHouse.proprietor.object.class)
+		end
 
-        log(common.logLevels.small, "[MAIN] " .. msg)
-        message(msg) -- this one is more informative, and not entirely for debugging, and reminiscent of Daggerfall's messages
-    end
+		log:info(msg)
+		-- This one is more informative, and not entirely for debugging, and reminiscent of Daggerfall's messages.
+		message(msg)
+	end
 end
 
--- }}}
+---@param e activateEventData
+local function onActivate(e)
+	if e.activator ~= tes3.player or e.target.object.objectType ~= tes3.objectType.npc or not config.disableInteraction then
+		return
+	end
 
+	local npcRef = e.target
+	local npc = npcRef.object
+
+	if not tes3.player.data.NPCsGoHome.intruding or util.isIgnoredNPC(npcRef) then
+		return
+	end
+
+	if npc.disposition and npc.disposition > config.minimumTrespassDisposition then
+		return
+	end
+
+	log:debug("Disabling dialogue with %s because trespass and disposition: %s", npc.name, npc.disposition)
+	-- TODO: i18n
+	tes3.messageBox(string.format("%s: Get out before I call the guards!", npc.name))
+	-- Block activation
+	return false
+end
+event.register(tes3.event.activate, onActivate)
+
+local TIMER_INTERVAL = 7
+local updateTimer
+
+---@param cell tes3cell
 local function applyChanges(cell)
-    if not cell then cell = tes3.getPlayerCell() end
+	cell = cell or tes3.getPlayerCell()
 
-    if checks.isIgnoredCell(cell) then return end
+	if util.isIgnoredCell(cell) then return end
 
-    -- Interior cell, except Canton cells, don't do anything
-    if checks.isInteriorCell(cell) and
-        not (config.cantonCells == common.canton.exterior and common.isCantonWorksCell(cell)) then return end
+	-- Interior cells, except Canton cells, don't do anything
+	if util.isInteriorCell(cell) and
+		not (config.cantonCellsPolicy == enum.cantonPolicy.exterior and util.isCantonWorksCell(cell)) then
+		return
+	end
 
-    -- don't do anything to public houses
-    if checks.isPublicHouse(cell) then return end
+	-- Don't do anything to public houses
+	if util.isPublicHouse(cell) then return end
 
-    -- Deal with NPCs and mounts/pets in cell
-    processors.processNPCs(cell)
-    processors.processPets(cell)
-    processors.processSiltStriders(cell)
+	-- Deal with NPCs and mounts/pets in cell
+	goHome.processNPCs(cell)
+	goHome.processPets(cell)
+	goHome.processSiltStriders(cell)
 
-    -- check doors in cell, locking those that aren't inns/clubs
-    processors.processDoors(cell)
+	-- Check doors in the cell, locking those that aren't inns/clubs
+	lockDoors.processDoors(cell)
 end
 
 local function updateCells()
-    log(common.logLevels.medium, "[MAIN] Updating active cells!")
+	log:debug("Updating active cells!")
 
-    common.runtimeData.followers = buildFollowerList()
+	runtimeData.followers = util.buildFollowerTable()
 
-    for _, cell in pairs(tes3.getActiveCells()) do
-        log(common.logLevels.large, "[MAIN] Applying changes to cell %s", cell.id)
+	for _, cell in pairs(tes3.getActiveCells()) do
+		log:trace("Applying changes to cell %s", cell.id)
 
-        -- initialize runtime data if needed
-        for _, t in pairs(common.runtimeData.NPCs) do t[cell.id] = t[cell.id] or {} end
+		for _, t in pairs(runtimeData.NPCs) do
+			t[cell.id] = t[cell.id] or {}
+		end
 
-        applyChanges(cell)
-    end
-
-    -- update interop runtime data after changes have been applied
-    interop.setRuntimeData(common.runtimeData)
+		applyChanges(cell)
+	end
 end
 
--- todo: more robust trespass checking... maybe take faction and rank into account?
--- maybe something like faction members you outrank don't mind you being in their house
--- also whether guildhalls are public or not, members can come and go as they please
--- todo maybe an esp with keys for guildhalls that are added when player joins or reaches a certain rank?
--- todo: maybe re-implement some or all features of Trespasser
-local function updatePlayerTrespass(cell, previousCell)
-    cell = cell or tes3.getPlayerCell()
+local function onLoaded()
+	tes3.player.data.NPCsGoHome = tes3.player.data.NPCsGoHome or {}
 
-    local inCity = previousCell and (previousCell.id:match(cell.id) or cell.id:match(previousCell.id))
-
-    if checks.isInteriorCell(cell) and not checks.isIgnoredCell(cell) and not checks.isPublicHouse(cell) and inCity then
-        if checks.isNight() then
-            tes3.player.data.NPCsGoHome.intruding = true
-        else
-            tes3.player.data.NPCsGoHome.intruding = false
-        end
-    else
-        tes3.player.data.NPCsGoHome.intruding = false
-    end
-    log(common.logLevels.small, "[MAIN] Updating player trespass status to %s", tes3.player.data.NPCsGoHome.intruding)
+	if not updateTimer or updateTimer.state ~= timer.active then
+		updateTimer = timer.start({
+			type = timer.simulate,
+			duration = TIMER_INTERVAL,
+			iterations = -1,
+			callback = updateCells
+		})
+	end
 end
+event.register(tes3.event.loaded, onLoaded)
 
--- }}}
 
--- {{{ event functions
-local eventFunctions = {}
 
-eventFunctions.onActivate = function(e)
-    if e.activator ~= tes3.player or e.target.object.objectType ~= tes3.objectType.npc or not config.disableInteraction then
-        return
-    end
-
-    local npc = e.target
-
-    if tes3.player.data.NPCsGoHome.intruding and not checks.isIgnoredNPC(npc) then
-        if npc.object.disposition and npc.object.disposition <= config.minimumTrespassDisposition then
-            log(common.logLevels.medium, "[MAIN] Disabling dialogue with %s because trespass and disposition: %s",
-                npc.object.name, npc.object.disposition)
-            tes3.messageBox(string.format("%s: Get out before I call the guards!", npc.object.name))
-            return false
-        end
-    end
+---@param e cellChangedEventData
+local function onCellChanged(e)
+	updateCells()
+	goHome.searchCellsForPositions()
+	goHome.loadRuntimeDataFromNPCData()
+	updatePlayerTrespass(e.cell, e.previousCell)
+	checkEnteredNPCHome(e.cell)
+	-- Exterior wilderness cells don't have name
+	if not e.cell.name then return end
+	checkEnteredPublicHouse(e.cell, common.split(e.cell.name, ",")[1])
 end
+event.register(tes3.event.cellChanged, onCellChanged)
 
-eventFunctions.onLoaded = function()
-    tes3.player.data.NPCsGoHome = tes3.player.data.NPCsGoHome or {}
+local postDialogueTimer = nil
+---@param e infoResponseEventData
+local function onInfoResponse(e)
+	-- The dialogue option clicked on
+	local dialogue = e.dialogue.id:lower()
+	-- What that dialogue option triggers; this will catch AIFollow commands.
+	local command = e.command:lower()
 
-    if not updateTimer or updateTimer.state ~= timer.active then
-        updateTimer = timer.start({
-            type = timer.simulate,
-            duration = config.timerInterval,
-            iterations = -1,
-            callback = updateCells
-        })
-    end
+	for _, item in ipairs({ "follow", "together", "travel", "wait", "stay" }) do
+		if command:match(item) or dialogue:match(item) then
+			-- Wait until game time restarts, and don't set multiple timers
+			if not postDialogueTimer or postDialogueTimer.state ~= timer.active then
+				log:info("Found %s in dialogue, rebuilding followers", item)
+				postDialogueTimer = timer.start({
+					type = timer.simulate,
+					duration = 0.25,
+					iteration = 1,
+					callback = function()
+						runtimeData.followers = util.buildFollowerList()
+					end
+				})
+			end
+		end
+	end
 end
+event.register(tes3.event.infoRespons, onInfoResponse)
 
-eventFunctions.onCellChanged = function(e)
-    updateCells()
-    processors.searchCellsForPositions()
-    processors.searchCellsForNPCs()
-    updatePlayerTrespass(e.cell, e.previousCell)
-    checkEnteredNPCHome(e.cell)
-    if e.cell.name then -- exterior wilderness cells don't have name
-        checkEnteredPublicHouse(e.cell, common.split(e.cell.name, ",")[1])
-    end
+-- Debug event
+---@param e keyDownEventData
+local function onKeyDown(e)
+	if log.level < mwse.logLevel.debug then return end
+	if tes3.isKeyEqual({ actual = e, expected = { keyCode = tes3.scanCode.c, isAltDown = true } }) then
+		-- ! this crashes my fully modded setup and I dunno why
+		-- ? doesn't crash my barely modded testing setup though
+		-- log(common.logLevels.none, json.encode(common.runtimeData, { indent = true }))
+		-- inspect handles userdata and tables within tables badly
+		log:debug(common.inspect(common.runtimeData))
+		return
+	end
+	if tes3.isKeyEqual({ actual = e, expected = { keyCode = tes3.scanCode.c, isControlDown = true } }) then
+		local pos = tostring(tes3.player.position):gsub("%(", "{"):gsub("%)", "}")
+		local ori = tostring(tes3.player.orientation):gsub("%(", "{"):gsub("%)", "}")
+
+		log:debug("[POSITIONS] {position = %s, orientation = %s},", pos, ori)
+	end
 end
-
-eventFunctions.onInfoResponse = function(e)
-    -- the dialogue option clicked on
-    local dialogue = tostring(e.dialogue):lower()
-    -- what that dialogue option triggers; this will catch AIFollow commands
-    local command = e.command:lower()
-
-    for _, item in pairs({"follow", "together", "travel", "wait", "stay"}) do
-        if command:match(item) or dialogue:match(item) then
-            -- wait until game time restarts, and don't set multiple timers
-            if not postDialogueTimer or postDialogueTimer.state ~= timer.active then
-                log(common.logLevels.small, "Found %s in dialogue, rebuilding followers", item)
-                postDialogueTimer = timer.start({
-                    type = timer.simulate,
-                    duration = 0.25,
-                    iteration = 1,
-                    callback = function() common.runtimeData.followers = buildFollowerList() end
-                })
-            end
-        end
-    end
-end
-
--- debug events
-eventFunctions.onKeyDown = function(e)
-    if e.keyCode ~= tes3.scanCode.c then return end
-    -- if alt log runtimeData
-    if e.isAltDown then
-        -- ! this crashes my fully modded setup and I dunno why
-        -- ? doesn't crash my barely modded testing setup though
-        -- log(common.logLevels.none, json.encode(common.runtimeData, { indent = true }))
-        -- inspect handles userdata and tables within tables badly
-        log(common.logLevels.none, common.inspect(common.runtimeData))
-    end
-    -- if ctrl log position data formatted for positions.lua
-    if e.isControlDown then
-        local pos = tostring(tes3.player.position):gsub("%(", "{"):gsub("%)", "}")
-        local ori = tostring(tes3.player.orientation):gsub("%(", "{"):gsub("%)", "}")
-
-        log(common.logLevels.none, "[POSITIONS] {position = %s, orientation = %s},", pos, ori)
-    end
-end
-
--- }}}
-
--- {{{ init
-local function onInitialized()
-    -- Register events
-    log(common.logLevels.small, "[MAIN] Registering events...")
-    for name, func in pairs(eventFunctions) do
-        local eventName = name:gsub("on(%u)", string.lower)
-        event.register(eventName, func)
-        log(common.logLevels.small, "[MAIN] %s event registered", eventName)
-    end
-
-    log(common.logLevels.none, "Successfully initialized")
-end
-
-event.register("initialized", onInitialized)
-
--- MCM
-event.register("modConfigReady", function() mwse.mcm.register(require("celediel.NPCsGoHome.mcm")) end)
--- }}}
-
--- vim:fdm=marker
+event.register(tes3.event.keyDown, onKeyDown)
