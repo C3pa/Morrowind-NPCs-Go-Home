@@ -9,28 +9,25 @@ local fileName = "NPCs Go Home"
 ---@field fileName string
 local default = {
 	logLevel = mwse.logLevel.info,
-	asetting = 300,
-	---@type mwseKeyMouseCombo
-	someKey = {
-		keyCode = tes3.scanCode.p,
-		isShiftDown = false,
-		isAltDown = true,
-		isControlDown = false,
-	},
 
-	disableInteraction = true,
-	minimumTrespassDisposition = 50,
-	cantonCellsPolicy = enum.cantonPolicy.exterior,
-	factionIgnorePercentage = (2 / 3) * 100,
-	minimumOccupancy = 4,
-	closeTime = 21,
-	openTime = 7,
+	lockDoors = true,
 	disableNPCs = true,
 	disableNPCsInWilderness = false,
 	moveNPCs = true,
+	homelessWanderersToPublicHouses = false, -- move NPCs to public houses if they don't have a home
+	disableInteraction = true,
+	minimumTrespassDisposition = 50,
+	cantonCellsPolicy = enum.cantonPolicy.exterior,
 	keepBadWeatherNPCs = true,
 	worstWeather = tes3.weather.thunder,
-    homelessWanderersToPublicHouses = false, -- move NPCs to public houses if they don't have a home
+	closeTime = 21,
+	openTime = 7,
+	minimumOccupancy = 4,
+	factionIgnorePercentage = math.round((2 / 3) * 100, 2),
+	showMessages = true,
+
+
+	-- TODO: no exclusions page to configure these yet.
 	ignoresBadWeatherRace = {
 		["argonian"] = true,
 	},
@@ -40,6 +37,8 @@ local default = {
 		["t_cyr_pilgrim"] = true,
 		["t_sky_pilgrim"] = true
 	},
+
+
 	npcBlacklist = {},
 	pluginBlacklist = {
 		-- Ignore abot's creature mods by default
@@ -51,8 +50,6 @@ local default = {
 	},
 	factionBlacklist = {},
 	cellBlacklist = {},
-	lockDoors = true,
-	showMessages = true,
 }
 
 local config = mwse.loadConfig(fileName, default)

@@ -49,6 +49,8 @@ A no-longer-lightweight fork of [OEA's Lightweight Lua Scheduling](https://www.n
 
 - Move non-faction NPCs who don't have homes to temples or inns based on their "worth"
 - Pick temple for the poorest NPCs, or classed inns based on NPC/inn "worth"
+- Only disable NPCs while the player isn't looking. [This](https://mwse.github.io/MWSE/types/niCamera/#worldpointtoscreenpoint) function will return nil if the actor's position isn't in the camera view.
+- Make NPCs walk to their home using: tes3.setAIActivate/tes3.setAITravel/npcRef:activate(doorRef)
 
 ## Known issues ##
 
