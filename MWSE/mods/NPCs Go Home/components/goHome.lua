@@ -15,10 +15,10 @@ local function updatePositions(cell)
 	local id = cell.id
 	-- update runtime positions in cell, but don't overwrite loaded positions
 	-- TODO: keys in these tables aren't lowercase
-	if not runtimeData.positions[id] and positions.cells[id] then
-		runtimeData.positions[id] = {}
+	if not runtimeData.availablePositions[id] and positions.cells[id] then
+		runtimeData.availablePositions[id] = {}
 		for _, data in pairs(positions.cells[id]) do
-			table.insert(runtimeData.positions[id], data)
+			table.insert(runtimeData.availablePositions[id], data)
 		end
 	end
 end
@@ -72,7 +72,7 @@ local function putNPCsBack(npcData)
 	end
 
 	-- Reset loaded position data
-	runtimeData.positions = {}
+	runtimeData.availablePositions = {}
 	goHome.searchCellsForPositions()
 end
 

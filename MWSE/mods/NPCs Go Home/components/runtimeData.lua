@@ -41,10 +41,11 @@ local runtimeData = {
 		--- @type table<string, tes3reference>
 		disabledBadWeather = {}
 	},
-	-- TODO: rename to availablePositions
-	-- positions that haven't been used
-	positions = {},
+	-- Positions that haven't been used
+	---@type table<string, { orientation: NPCsGoHome.vector3Table, position: NPCsGoHome.vector3Table}[]|nil>
+	availablePositions = {},
 }
+
 
 ---@param publicCell tes3cell
 ---@param proprietor? tes3reference TODO: the type is only a guess
@@ -137,12 +138,12 @@ function runtimeData.insertNPCHome(npc, home, startingPlace, isHome, position, o
 	if isHome and positionData then
 		pos = positionData.position
 		ori = positionData.orientation
-	elseif runtimeData.positions[id] and not table.empty(runtimeData.positions[id]) then
+	elseif runtimeData.availablePositions[id] and not table.empty(runtimeData.availablePositions[id]) then
 		-- Pick a random position out of the positions in memory
-		local choice, index = table.choice(runtimeData.positions[id])
+		local choice, index = table.choice(runtimeData.availablePositions[id])
 		pos = choice.position
 		ori = choice.orientation
-		table.remove(runtimeData.positions[id], index)
+		table.remove(runtimeData.availablePositions[id], index)
 	end
 
 	local pickedPosition = tes3vector3.new(unpack(pos))
