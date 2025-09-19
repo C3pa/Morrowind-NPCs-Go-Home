@@ -1,7 +1,7 @@
-local cellEvaluator = require("NPCs Go Home.components.cellEvaluator")
 local cellTypeUtil = require("NPCs Go Home.util.cellTypeUtil")
 local config = require("NPCs Go Home.config")
 local enum = require("NPCs Go Home.enum")
+local npcEvaluator = require("NPCs Go Home.components.npcEvaluator")
 local runtimeData = require("NPCs Go Home.components.runtimeData")
 
 local log = mwse.Logger.new()
@@ -95,18 +95,39 @@ end
 
 local util = {}
 
-function util.buildFollowerTable()
-	---@type table<tes3mobileActor, true>
-	local followers = {}
-	for _, friend in ipairs(tes3.mobilePlayer.friendlyActors) do
-		-- todo: check for ignored NPCs if followers list is ever used for anything other than part of checks.ignoredNPC()
-		if friend ~= tes3.mobilePlayer then -- ? why is the player friendly towards the player ?
-			followers[friend.object.id] = true
-			log:debug("%s is a follower.", friend.object.id)
-		end
+local followPackage = {
+	[tes3.aiPackage.follow] = true,
+	[tes3.aiPackage.escort] = true,
+}
+
+--- This function returns `true` if a given actor has
+--- follow AI package with the player as its target.
+---@param reference tes3reference
+---@return boolean isFollower
+local function isFollower(reference)
+	local mobile = reference.mobile
+	if not mobile then
+		return false
 	end
-	return followers
+	local planner = mobile.aiPlanner
+	if not planner then
+		return false
+	end
+
+	local package = planner:getActivePackage()
+	if not package then
+		return false
+	end
+
+	if not followPackage[package.type] then
+		return false
+	end
+	if package.targetActor.objectType ~= tes3.objectType.mobilePlayer then
+		return false
+	end
+	return true
 end
+
 
 -- todo: more quest aware checks like this
 local function fargothCheck()
@@ -139,7 +160,7 @@ function util.isIgnoredNPC(npcRef)
 	local isFargoth = npc.id:match("fargoth")
 	local isFargothActive = isFargoth and fargothCheck() or false
 	local isClassBlacklisted = config.classBlacklist[npc.class.id:lower()]
-	local isFollower = runtimeData.followers[npcRef.object.id]
+	local isFollower = isFollower(npcRef)
 	log:trace("Checking NPC: %s (%s or %s): \z
 				isNPCBlacklisted: %s, %s isPluginBlacklisted: %s, class: &s, \z
 				isClassBlacklisted: %s, guard: %s, dead: %s, vampire: %s, werewolf: %s, \z
@@ -214,6 +235,106 @@ function util.isCantonWorksCell(cell)
 	return false
 end
 
+-- TODO: remove/consolidate with util.isIgnoredNPC
+---@param npc tes3reference
+local function isIgnoredNPCLite(npc)
+	local obj = npc.baseObject and npc.baseObject or npc.object
+
+	local isGuard = obj.isGuard or (obj.name and (obj.name:lower():match("guard") and true or false) or false) -- maybe this should just be an if else
+	local isVampire = obj.head and (obj.head.vampiric and true or false) or false
+
+	return config.npcBlacklist[obj.id:lower()] or
+		config.pluginBlacklist[obj.sourceMod:lower()] or
+		isGuard or
+		isVampire or
+		isFollower(npc)
+end
+
+-- Cell worth is combined worth of all NPCs
+---@param cell tes3cell
+---@param proprietor? tes3reference
+local function calculateCellWorth(cell, proprietor)
+	local worth = 0
+
+	local msg = "\tbreakdown:\n"
+	for innard in cell:iterateReferences(tes3.objectType.npc) do
+		if isIgnoredNPCLite(innard) then
+			goto continue
+		end
+
+		local total = npcEvaluator.calculateWorth(innard, innard == proprietor and cell or nil).total
+		worth = worth + total
+
+		if log.level == mwse.logLevel.trace then
+			msg = msg .. string.format("%s worth: %s, ", innard.object.name, total)
+		end
+
+		:: continue ::
+	end
+
+	log:debug("Calculated worth of %s for cell %s.", worth, cell.id)
+	log:trace(msg:sub(1, #msg - 2)) -- strip off last ", "
+	return worth
+end
+
+-- Iterate over NPCs in the cell, if configured amount of the population is in the same faction,
+-- that's the cell's faction, otherwise, the cell doesn't have a faction.
+---@param cell tes3cell
+local function pickCellFaction(cell)
+	local npcs = {
+		majorityFactions = {},
+		allFactions = {},
+		total = 0
+	}
+
+	-- Count all the npcs with factions
+	for npcRef in cell:iterateReferences(tes3.objectType.npc) do
+		if isIgnoredNPCLite(npcRef) then
+			goto continue
+		end
+
+		local npc = npcRef.object
+		local faction = npc.faction
+		if faction then
+			if not npcs.allFactions[faction.id] then
+				npcs.allFactions[faction.id] = {
+					total = 0,
+					percentage = 0
+				}
+			end
+
+			local highestRankingMember = npcs.allFactions[faction.id].master
+			if not highestRankingMember or highestRankingMember.object.factionRank < npc.factionRank then
+				npcs.allFactions[faction.id].master = npcRef
+			end
+
+			npcs.allFactions[faction.id].total = npcs.allFactions[faction.id].total + 1
+		end
+
+		npcs.total = npcs.total + 1
+		:: continue ::
+	end
+
+	-- Pick out all the factions that make up a percentage of the cell greater than the configured value
+	-- as long as the cell passes the minimum requirement check.
+	local highestPercentage = -1
+	for id, info in pairs(npcs.allFactions) do
+		info.percentage = (info.total / npcs.total) * 100
+		if info.percentage >= config.factionIgnorePercentage and npcs.total >= config.minimumOccupancy then
+			npcs.majorityFactions[id] = info.percentage
+			if info.percentage > highestPercentage then
+				highestPercentage = info.percentage
+			end
+		end
+	end
+
+	-- From the majority values, return the faction with the largest percentage, or nil
+	local picked = table.find(npcs.majorityFactions, highestPercentage)
+	log:debug("Picked faction %s for cell %s", picked, cell.id)
+	log:trace("\tbreakdown:\n%s", npcs)
+	return picked
+end
+
 -- Checks NPC class and faction in cells for block list and adds to publicHouse list
 -- TODO: rewrite this
 ---@param cell tes3cell
@@ -248,8 +369,8 @@ function util.isPublicHouse(cell)
 	-- If it's a waistworks or plaza cell, it's public, with no proprietor
 	if config.cantonCellsPolicy == enum.cantonPolicy.public and isPublicCantonCell(lowerId) then
 		runtimeData.insertPublicHouse(cell, nil, city, publicHouseName,
-			cellEvaluator.calculateWorth(cell),
-			cellEvaluator.pickCellFaction(cell),
+			calculateCellWorth(cell),
+			pickCellFaction(cell),
 			enum.publicHouse.cantons)
 		return true
 	end
@@ -268,8 +389,8 @@ function util.isPublicHouse(cell)
 		if npc.class and config.classBlacklist[npc.class.id:lower()] then
 			log:debug("%q of class: %q made %s public", npc.name, npc.class and npc.class.id or "none", cellName)
 			runtimeData.insertPublicHouse(cell, npcRef, city, publicHouseName,
-				cellEvaluator.calculateWorth(cell),
-				cellEvaluator.pickCellFaction(cell))
+				calculateCellWorth(cell),
+				pickCellFaction(cell))
 			return true
 		end
 
@@ -284,7 +405,7 @@ function util.isPublicHouse(cell)
 				}
 			end
 
-			-- TODO: this duplicates some code from cellEvaluator
+			-- TODO: this duplicates some code from pickCellFaction
 			local highestRankingMember = npcs.factions[id].master
 			if not highestRankingMember or highestRankingMember.object.factionRank < npc.factionRank then
 				npcs.factions[id].master = npcRef
@@ -303,8 +424,8 @@ function util.isPublicHouse(cell)
 		log:debug("%s is a temple, and %s, %s is the highest ranking member.", cell.id,
 			master.object.name, master.object.class)
 		runtimeData.insertPublicHouse(cell, master, city, publicHouseName,
-			cellEvaluator.calculateWorth(cell),
-			cellEvaluator.pickCellFaction(cell),
+			calculateCellWorth(cell),
+			pickCellFaction(cell),
 			enum.publicHouse.temples)
 		return true
 	end
@@ -332,8 +453,8 @@ function util.isPublicHouse(cell)
 			end
 
 			runtimeData.insertPublicHouse(cell, npcs.factions[faction].master, city, publicHouseName,
-				cellEvaluator.calculateWorth(cell),
-				cellEvaluator.pickCellFaction(cell),
+				calculateCellWorth(cell),
+				pickCellFaction(cell),
 				enum.publicHouse.guildhalls)
 			return true
 		end

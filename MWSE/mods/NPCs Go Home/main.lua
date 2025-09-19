@@ -132,9 +132,6 @@ end
 
 local function updateCells()
 	log:debug("Updating active cells!")
-
-	runtimeData.followers = util.buildFollowerTable()
-
 	for _, cell in pairs(tes3.getActiveCells()) do
 		log:trace("Applying changes to cell %s", cell.id)
 
@@ -174,33 +171,6 @@ local function onCellChanged(e)
 	checkEnteredPublicHouse(e.cell, string.split(e.cell.name, ",")[1])
 end
 event.register(tes3.event.cellChanged, onCellChanged)
-
-local postDialogueTimer = nil
----@param e infoResponseEventData
-local function onInfoResponse(e)
-	-- The dialogue option clicked on
-	local dialogue = e.dialogue.id:lower()
-	-- What that dialogue option triggers; this will catch AIFollow commands.
-	local command = e.command:lower()
-
-	for _, item in ipairs({ "follow", "together", "travel", "wait", "stay" }) do
-		if command:match(item) or dialogue:match(item) then
-			-- Wait until game time restarts, and don't set multiple timers
-			if not postDialogueTimer or postDialogueTimer.state ~= timer.active then
-				log:info("Found %s in dialogue, rebuilding followers", item)
-				postDialogueTimer = timer.start({
-					type = timer.simulate,
-					duration = 0.25,
-					iteration = 1,
-					callback = function()
-						runtimeData.followers = util.buildFollowerList()
-					end
-				})
-			end
-		end
-	end
-end
-event.register(tes3.event.infoRespons, onInfoResponse)
 
 -- Debug event
 ---@param e keyDownEventData

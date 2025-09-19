@@ -44,8 +44,6 @@ local runtimeData = {
 	-- TODO: rename to availablePositions
 	-- positions that haven't been used
 	positions = {},
-	-- player companions
-	followers = {}
 }
 
 ---@param publicCell tes3cell
