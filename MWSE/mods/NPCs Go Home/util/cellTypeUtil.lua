@@ -4,7 +4,7 @@ local cellType = {}
 
 -- TODO: pick this better
 ---@param cell tes3cell
----@return NPCsGoHome.publicHouseType
+---@return NPCsGoHome.publicHouseType|integer
 function cellType.pickPublicHouseType(cell)
 	local id = cell.id:lower()
 	if id:match("guild") then

@@ -54,7 +54,7 @@ local runtimeData = {
 ---@param name string
 ---@param cellWorth integer
 ---@param cellFaction string
----@param type? NPCsGoHome.publicHouseType
+---@param type? NPCsGoHome.publicHouseType|integer
 function runtimeData.insertPublicHouse(publicCell, proprietor, city, name, cellWorth, cellFaction, type)
 	local typeOfPub = type or cellTypeUtil.pickPublicHouseType(publicCell) -- Use shitty type picker if none specified
 
