@@ -175,9 +175,6 @@ end
 ---@param cell tes3cell
 function util.isInteriorCell(cell)
 	local realInterior = cell.isInterior and not cell.behavesAsExterior
-	log:trace("Cell %s: interior: %s, behaves as exterior: %s therefore returning %s",
-		cell.id, cell.isInterior, cell.behavesAsExterior, realInterior)
-
 	return realInterior
 end
 
@@ -349,8 +346,6 @@ end
 function util.isNight()
 	local hour = tes3.worldController.hour.value
 	local isNight = hour >= config.closeTime or hour <= config.openTime
-	log:trace("Current time is %.2f (%snight), things are closed between %s and %s",
-		hour, isNight and "" or "not ", config.closeTime, config.openTime)
 
 	return isNight
 end
@@ -418,80 +413,6 @@ function util.isSiltStrider(activator)
 	return id:match("siltstrider") or
 		-- TODO: is this for Kilchunda's Balmora?
 		id:match("kil_silt")
-end
-
-local prisonMarkerId = "PrisonMarker"
-
----@param internalCellId string
----@param externalCellId string
-local function isCityCell(internalCellId, externalCellId)
-	-- Easy mode
-	if string.match(internalCellId, externalCellId) then
-		log:trace("Easy mode city: %s in %s", internalCellId, externalCellId)
-		return true
-	end
-
-	local cityMatch = "^(%w+), (.*)"
-	-- check for "advanced" cities
-	local _, _, internalCity = string.find(internalCellId, cityMatch)
-	local _, _, externalCity = string.find(externalCellId, cityMatch)
-
-	if externalCity and externalCity == internalCity then
-		log:trace("Hard mode city: %s in %s, %s == %s", internalCellId, externalCellId, externalCity, internalCity)
-		return true
-	end
-
-	log:trace("Hard mode not city: %s not in %s, %s ~= %s or both are nil",
-		internalCellId, externalCellId, externalCity, internalCity)
-	return false
-end
-
--- Doors that lead to ignored, exterior, canton, unoccupied, or public cells, and doors that aren't in cities.
----@param door tes3reference
----@param homeCellId string
-function util.isIgnoredDoor(door, homeCellId)
-	-- Don't lock prison markers.
-	if door.id == prisonMarkerId then
-		return true
-	end
-
-	-- Don't lock non-cell change doors.
-	if not door.destination then
-		log:trace("Non-Cell-change door %s, ignoring", door.id)
-		return true
-	end
-
-	-- We use this a lot, so set a reference to it.
-	local dest = door.destination.cell
-
-	-- Only doors in cities and towns (interior cells with names that contain the exterior cell).
-	local inCity = isCityCell(dest.id, homeCellId)
-
-	-- Peek inside doors to look for guild halls, inns and clubs.
-	local leadsToPublicCell = util.isPublicHouse(dest)
-
-	-- Don't lock unoccupied cells.
-	local hasOccupants = false
-	for npc in dest:iterateReferences(tes3.objectType.npc) do
-		if not util.isIgnoredNPC(npc) then
-			hasOccupants = true
-			break
-		end
-	end
-
-	-- Don't lock doors to canton cells.
-	local isCantonWorks = util.isCantonWorksCell(dest)
-
-	log:trace("%s is %s, (%sin a city, is %spublic, %soccupied)",
-		dest.id, util.isIgnoredCell(dest) and "ignored" or "not ignored",
-		inCity and "" or "not ", leadsToPublicCell and "" or "not ", hasOccupants and "" or "un")
-
-	return util.isIgnoredCell(dest) or
-		not util.isInteriorCell(dest) or
-		isCantonWorks or
-		not inCity or
-		leadsToPublicCell or
-		not hasOccupants
 end
 
 -- Returns "n" if "a" needs to become "an" for the word in question
