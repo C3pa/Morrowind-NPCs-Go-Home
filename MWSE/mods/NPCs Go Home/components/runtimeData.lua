@@ -26,6 +26,7 @@ local runtimeData = {
 	},
 	-- Holder for all NPC data
 	NPCs = {
+		-- TODO: test if these also need to use safe handles.
 		-- NPCs who have been moved
 		--- @type table<string, table<string, NPCsGoHome.movedNPCData>>
 		moved = {},
@@ -33,12 +34,11 @@ local runtimeData = {
 		--- @type table<string, table<string, NPCsGoHome.movedNPCData>>
 		movedBadWeather = {},
 
-		-- TODO: the two tables below need to use safe object handles instead.
 		-- NPCs who have been disabled
-		--- @type table<string, tes3reference>
+		--- @type table<string, mwseSafeObjectHandle[]>
 		disabled = {},
 		-- NPCs who stick around in bad weather and have been disabled
-		--- @type table<string, tes3reference>
+		--- @type table<string, mwseSafeObjectHandle[]>
 		disabledBadWeather = {}
 	},
 	-- Positions that haven't been used

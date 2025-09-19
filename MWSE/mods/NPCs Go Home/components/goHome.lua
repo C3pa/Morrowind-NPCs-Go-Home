@@ -76,11 +76,16 @@ local function putNPCsBack(npcData)
 	goHome.searchCellsForPositions()
 end
 
----@param npcs table<string, tes3reference>
+---@param npcs mwseSafeObjectHandle[]
 local function reEnableNPCs(npcs)
 	log:debug("Re-enabling NPCs:\n%s", npcs)
-	for id, ref in pairs(npcs) do
-		log:debug("Making attempt at re-enabling %s", id)
+	for _, handle in ipairs(npcs) do
+		if not handle:valid() then
+			goto continue
+		end
+		local ref = handle:getObject()
+		log:debug("Making attempt at re-enabling %s", ref.id)
+		-- TODO: is this check even necessary?
 		if not ref.object then
 			goto continue
 		end
@@ -88,7 +93,6 @@ local function reEnableNPCs(npcs)
 			tes3.setEnabled({ reference = ref })
 		end
 		ref.data.NPCsGoHome = nil
-		npcs[id] = nil
 
 		:: continue ::
 	end
@@ -144,14 +148,18 @@ end
 ---@param cell tes3cell
 local function disableNPC(npc, cell)
 	log:debug("Disabling un-homed %s", npc.id)
+	local handle = tes3.makeSafeObjectHandle(npc)
 	if util.isBadWeatherNPC(npc) then
-		runtimeData.NPCs.disabledBadWeather[cell.id] = runtimeData.NPCs.disabledBadWeather[cell.id] or {}
-		runtimeData.NPCs.disabledBadWeather[cell.id][npc.id] = npc
+		local disabled = runtimeData.NPCs.disabledBadWeather
+		disabled[cell.id] = disabled[cell.id] or {}
+		table.insert(disabled[cell.id], handle)
+
 	else
-		runtimeData.NPCs.disabled[cell.id] = runtimeData.NPCs.disabled[cell.id] or {}
-		runtimeData.NPCs.disabled[cell.id][npc.id] = npc
+		local disabled = runtimeData.NPCs.disabled
+		disabled[cell.id] = disabled[cell.id] or {}
+		table.insert(disabled[cell.id], handle)
 	end
-	-- Set NPC data
+
 	npc.data.NPCsGoHome = { disabled = true }
 	-- npc:disable() -- ! this one sometimes causes crashes
 	-- mwscript.disable({reference = npc}) -- ! this one is deprecated
@@ -179,16 +187,20 @@ local function updateRuntimeData(cell)
 			goto continue
 		end
 		local data = npc.data.NPCsGoHome
-		log:trace("%s has NPCsGoHome data, deciding if disabled or moved...%s", npc, data)
+		local handle = tes3.makeSafeObjectHandle(npc)
 		local isBadWeather = util.isBadWeatherNPC(npc)
+		log:trace("%s has NPCsGoHome data, deciding if disabled or moved...%s", npc, data)
+
 		if data.disabled then
 			-- The NPC was disabled.
 			if isBadWeather then
-				runtimeData.NPCs.disabledBadWeather[cellId] = runtimeData.NPCs.disabledBadWeather[cellId] or {}
-				runtimeData.NPCs.disabledBadWeather[cellId][npc.id] = npc
+				local disabled = runtimeData.NPCs.disabledBadWeather
+				disabled[cellId] = disabled[cellId] or {}
+				table.insert(disabled[cellId], handle)
 			else
-				runtimeData.NPCs.disabled[cellId] = runtimeData.NPCs.disabled[cellId] or {}
-				runtimeData.NPCs.disabled[cellId][npc.id] = npc
+				local disabled = runtimeData.NPCs.disabled
+				disabled[cellId] = disabled[cellId] or {}
+				table.insert(disabled[cellId], handle)
 			end
 		else
 			-- homed NPC
@@ -245,9 +257,11 @@ function goHome.processNPCs(cell)
 		end
 		if not table.empty(runtimeData.NPCs.disabled[cell.id]) then
 			reEnableNPCs(runtimeData.NPCs.disabled[cell.id])
+			runtimeData.NPCs.disabled[cell.id] = {}
 		end
 		if not table.empty(runtimeData.NPCs.disabledBadWeather[cell.id]) then
 			reEnableNPCs(runtimeData.NPCs.disabledBadWeather[cell.id])
+			runtimeData.NPCs.disabledBadWeather[cell.id] = {}
 		end
 		return
 	end
@@ -268,6 +282,7 @@ function goHome.processNPCs(cell)
 			end
 			if not table.empty(runtimeData.NPCs.disabledBadWeather[cell.id]) then
 				reEnableNPCs(runtimeData.NPCs.disabledBadWeather[cell.id])
+				runtimeData.NPCs.disabledBadWeather[cell.id] = {}
 			end
 		end
 	elseif isNight then
