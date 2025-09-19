@@ -20,18 +20,19 @@ local runtimeData = {
 		-- Used for caching homes to avoid reiterating NPCs
 		--- @type table<string, NPCsGoHome.movedNPCData>
 		byName = {},
+		-- TODO: consider removing this.
 		-- Used for checking when entering wandering NPC's house, will probably remove
+		-- Only used by checkEnteredNPCHome in main.lua
 		--- @type table<string, NPCsGoHome.movedNPCData>
 		byCell = {}
 	},
 	-- Holder for all NPC data
 	NPCs = {
-		-- TODO: test if these also need to use safe handles.
 		-- NPCs who have been moved
-		--- @type table<string, table<string, NPCsGoHome.movedNPCData>>
+		--- @type table<string, NPCsGoHome.movedNPCData[]>
 		moved = {},
 		-- NPCs who stick around in bad weather and have been moved
-		--- @type table<string, table<string, NPCsGoHome.movedNPCData>>
+		--- @type table<string, NPCsGoHome.movedNPCData[]>
 		movedBadWeather = {},
 
 		-- NPCs who have been disabled
@@ -65,7 +66,7 @@ function runtimeData.insertPublicHouse(publicCell, proprietor, city, name, cellW
 		city = city,
 		cell = publicCell,
 		type = type,
-		proprietor = proprietor,
+		proprietor = tes3.makeSafeObjectHandle(proprietor),
 		proprietorName = proprietorName,
 		worth = cellWorth,
 		faction = cellFaction
@@ -159,17 +160,17 @@ function runtimeData.insertNPCHome(npc, home, startingPlace, isHome, position, o
 
 	---@class NPCsGoHome.movedNPCData
 	local entry = {
-		name = name,                   -- string
-		npc = npc,                     -- tes3npc
-		isHome = isHome,               -- bool
-		home = home,                   -- tes3cell
-		homeName = home.id,            -- string
-		ogPlace = startingPlace,       -- tes3cell
-		ogPlaceName = startingPlace.id, -- string
-		ogPosition = ogPosition,       -- tes3vector3
-		ogOrientation = ogOrientation, -- tes3vector3
-		homePosition = pickedPosition, -- tes3vector3
-		homeOrientation = pickedOrientation, -- tes3vector3
+		name = name,
+		npc = tes3.makeSafeObjectHandle(npc),
+		isHome = isHome,
+		home = home,
+		homeName = home.id,
+		ogPlace = startingPlace,
+		ogPlaceName = startingPlace.id,
+		ogPosition = ogPosition,
+		ogOrientation = ogOrientation,
+		homePosition = pickedPosition,
+		homeOrientation = pickedOrientation,
 		worth = npcEvaluator.calculateWorth(npc)
 	}
 

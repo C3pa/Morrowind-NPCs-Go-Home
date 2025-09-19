@@ -44,30 +44,31 @@ function goHome.searchCellsForPositions()
 	end
 end
 
----@param npcData table<string, NPCsGoHome.movedNPCData>
+---@param npcData NPCsGoHome.movedNPCData[]
 local function putNPCsBack(npcData)
 	log:debug("Moving back NPCs:\n%s", npcData)
-	for id, data in pairs(npcData) do
-		local npcObject = data.npc.object
-		if not npcObject then
-			-- TODO: npcData[id] isn't cleared in this case.
+	for _, data in ipairs(npcData) do
+		local handle = data.npc
+		if not handle:valid() then
+			log:warn("Invalid NPC reference handle for moved NPC. Can't move back. Stack traceback: %s",
+				debug.traceback())
 			goto continue
 		end
+		local npc = handle:getObject()
+		local npcObject = npc.object
 
-		log:debug("Moving %s back outside to %s (%s, %s, %s)", npcObject.name,
-			data.ogPlace.id, data.ogPosition.x, data.ogPosition.y, data.ogPosition.z)
+		log:debug("Moving %s back outside to %s %s", npcObject.name, data.ogPlace.id, data.ogPosition)
 
 		-- Unset NPC data so we don't try to move them on load.
-		data.npc.data.NPCsGoHome = nil
+		npc.data.NPCsGoHome = nil
 
 		-- And put them back
 		tes3.positionCell({
 			cell = data.ogPlace,
-			reference = data.npc,
+			reference = npc,
 			position = data.ogPosition,
 			orientation = data.ogPlace
 		})
-		npcData[id] = nil
 		:: continue ::
 	end
 
@@ -114,19 +115,25 @@ end
 
 ---@param homeData NPCsGoHome.movedNPCData
 local function moveNPC(homeData)
-	local npc = homeData.npc
+	local handle = homeData.npc
+	if not handle:valid() then
+		log:warn("Invalid NPC reference handle. Stack traceback: %s", debug.traceback())
+		return
+	end
+	local npc = handle:getObject()
 	log:debug("Moving %s to home %s (%s, %s, %s)", npc.object.name,
 		homeData.home.id, homeData.homePosition.x, homeData.homePosition.y, homeData.homePosition.z)
 	local ogPlaceName = homeData.ogPlaceName
 
 	-- Add to the cached table
-	local badWeather = util.isBadWeatherNPC(npc)
-	if badWeather then
-		runtimeData.NPCs.movedBadWeather[ogPlaceName] = runtimeData.NPCs.movedBadWeather[ogPlaceName] or {}
-		runtimeData.NPCs.movedBadWeather[ogPlaceName][npc.id] = homeData
+	if util.isBadWeatherNPC(npc) then
+		local moved = runtimeData.NPCs.movedBadWeather
+		moved[ogPlaceName] = moved[ogPlaceName] or {}
+		table.insert(moved[ogPlaceName], homeData)
 	else
-		runtimeData.NPCs.moved[ogPlaceName] = runtimeData.NPCs.moved[ogPlaceName] or {}
-		runtimeData.NPCs.moved[ogPlaceName][npc.id] = homeData
+		local moved = runtimeData.NPCs.moved
+		moved[ogPlaceName] = moved[ogPlaceName] or {}
+		table.insert(moved[ogPlaceName], homeData)
 	end
 
 	-- Store necessary info to npc.data, so we can move NPCs back after a load.
@@ -138,7 +145,7 @@ local function moveNPC(homeData)
 
 	tes3.positionCell({
 		cell = homeData.home,
-		reference = homeData.npc,
+		reference = npc,
 		position = homeData.homePosition,
 		orientation = homeData.homeOrientation
 	})
@@ -153,7 +160,6 @@ local function disableNPC(npc, cell)
 		local disabled = runtimeData.NPCs.disabledBadWeather
 		disabled[cell.id] = disabled[cell.id] or {}
 		table.insert(disabled[cell.id], handle)
-
 	else
 		local disabled = runtimeData.NPCs.disabled
 		disabled[cell.id] = disabled[cell.id] or {}
@@ -179,7 +185,7 @@ end
 
 -- Search in a specific cell for moved or disabled NPCs and update our runtimeData.
 ---@param cell tes3cell
-local function updateRuntimeData(cell)
+local function loadRuntimeData(cell)
 	local cellId = cell.id
 	log:debug("Looking for moved NPCs in cell %s", cellId)
 	for npc in cell:iterateReferences(tes3.objectType.npc) do
@@ -203,16 +209,18 @@ local function updateRuntimeData(cell)
 				table.insert(disabled[cellId], handle)
 			end
 		else
-			-- homed NPC
+			-- NPC sent home.
 			local homeData = runtimeData.insertNPCHome(npc, cell, tes3.getCell({ id = data.cell }),
 				true, data.position, data.orientation)
 			local ogPlaceName = homeData.ogPlaceName
 			if isBadWeather then
-				runtimeData.NPCs.movedBadWeather[ogPlaceName] = runtimeData.NPCs.movedBadWeather[ogPlaceName] or {}
-				runtimeData.NPCs.movedBadWeather[ogPlaceName][npc.id] = homeData
+				local moved = runtimeData.NPCs.movedBadWeather
+				moved[ogPlaceName] = moved[ogPlaceName] or {}
+				table.insert(moved[ogPlaceName], homeData)
 			else
-				runtimeData.NPCs.moved[ogPlaceName] = runtimeData.NPCs.moved[ogPlaceName] or {}
-				runtimeData.NPCs.moved[ogPlaceName][npc.id] = homeData
+				local moved = runtimeData.NPCs.moved
+				moved[ogPlaceName] = moved[ogPlaceName] or {}
+				table.insert(moved[ogPlaceName], homeData)
 			end
 		end
 		:: continue ::
@@ -221,11 +229,11 @@ end
 
 function goHome.loadRuntimeDataFromNPCData()
 	for _, cell in pairs(tes3.getActiveCells()) do
-		updateRuntimeData(cell)
+		loadRuntimeData(cell)
 		for door in cell:iterateReferences(tes3.objectType.door) do
 			if door.destination then
-				-- then check cells attached to active cells
-				updateRuntimeData(door.destination.cell)
+				-- Then check cells attached to active cells
+				loadRuntimeData(door.destination.cell)
 			end
 		end
 	end
@@ -251,9 +259,11 @@ function goHome.processNPCs(cell)
 		log:trace("!!Good weather and not night!!")
 		if not table.empty(runtimeData.NPCs.moved[cell.id]) then
 			putNPCsBack(runtimeData.NPCs.moved[cell.id])
+			runtimeData.NPCs.moved[cell.id] = {}
 		end
 		if not table.empty(runtimeData.NPCs.movedBadWeather[cell.id]) then
 			putNPCsBack(runtimeData.NPCs.movedBadWeather[cell.id])
+			runtimeData.NPCs.movedBadWeather[cell.id] = {}
 		end
 		if not table.empty(runtimeData.NPCs.disabled[cell.id]) then
 			reEnableNPCs(runtimeData.NPCs.disabled[cell.id])
@@ -279,6 +289,7 @@ function goHome.processNPCs(cell)
 		if config.keepBadWeatherNPCs then
 			if not table.empty(runtimeData.NPCs.movedBadWeather[cell.id]) then
 				putNPCsBack(runtimeData.NPCs.movedBadWeather[cell.id])
+				runtimeData.NPCs.movedBadWeather[cell.id] = {}
 			end
 			if not table.empty(runtimeData.NPCs.disabledBadWeather[cell.id]) then
 				reEnableNPCs(runtimeData.NPCs.disabledBadWeather[cell.id])

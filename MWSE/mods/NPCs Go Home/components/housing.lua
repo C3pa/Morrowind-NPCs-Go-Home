@@ -47,11 +47,25 @@ local function pickPublicHouseForNPC(npcRef, city)
 	end
 
 	for _, placeType in ipairs(publicPlaces) do
+		---@param _ string
+		---@param data NPCsGoHome.publicHouseData
 		for _, data in pairs(availablePublicHouses[placeType] or {}) do
-			if npcRef.object.faction == data.proprietor.object.faction then
+			local handle = data.proprietor
+			local npcFaction = npcRef.object.faction
+			if handle:valid() then
+				local cellFaction = handle:getObject().object.faction
+				if npcFaction == cellFaction then
 				log:debug("Picking %s for %s based on faction.", data.cell.id, npcRef.object.name)
+					return data.cell
+				end
+			end
+
+			-- TODO: this is a fall back.
+			if data.faction == npcFaction.id:lower() then
 				return data.cell
 			end
+
+			:: continue ::
 		end
 	end
 

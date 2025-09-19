@@ -386,6 +386,7 @@ function util.isPublicHouse(cell)
 		end
 
 		local npc = npcRef.object
+		-- TODO: why is classBlacklist used like this? Looks suspicious.
 		if npc.class and config.classBlacklist[npc.class.id:lower()] then
 			log:debug("%q of class: %q made %s public", npc.name, npc.class and npc.class.id or "none", cellName)
 			runtimeData.insertPublicHouse(cell, npcRef, city, publicHouseName,

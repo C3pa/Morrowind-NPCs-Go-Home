@@ -58,6 +58,7 @@ end
 local function checkEnteredPublicHouse(cell, city)
 	local typeOfPub = cellTypeUtil.pickPublicHouseType(cell)
 
+	-- TODO: this probably needs to index the .byType table instead.
 	local publicHouse = runtimeData.publicHouses.byName[city] and
 		runtimeData.publicHouses.byName[city][cell.id]
 
@@ -67,9 +68,10 @@ local function checkEnteredPublicHouse(cell, city)
 			util.vowel(pubTypeName), pubTypeName:gsub("s$", ""), publicHouse.city)
 
 		-- TODO: check for more servicers, not just proprietor
-		if publicHouse.proprietor and util.isServicer(publicHouse.proprietor) then
-			msg = msg .. string.format(" Talk to %s, %s for services.", publicHouse.proprietor.object.name,
-				publicHouse.proprietor.object.class)
+		local handle = publicHouse.proprietor
+		if handle and handle:valid() and util.isServicer(handle:getObject()) then
+			local npc = handle:getObject().object
+			msg = msg .. string.format(" Talk to %s, %s for services.", npc.name, npc.class)
 		end
 
 		log:info(msg)
