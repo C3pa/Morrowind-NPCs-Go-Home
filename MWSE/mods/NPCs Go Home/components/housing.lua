@@ -1,5 +1,6 @@
 local config = require("NPCs Go Home.config")
 local enum = require("NPCs Go Home.enum")
+local nameUtil = require("NPCs Go Home.util.nameUtil")
 local runtimeData = require("NPCs Go Home.components.runtimeData")
 local util = require("NPCs Go Home.util")
 
@@ -92,7 +93,7 @@ function housing.pickHomeForNPC(cell, npc)
 	end
 
 	-- Time to pick the "home"
-	local name = npc.object.name:gsub(" the .*$", "") -- remove "the whatever" from NPCs name
+	local name = nameUtil.removeTitle(npc.object.name)
 	-- TODO: extract the city name logic into a separate function. This is also present in one of the util functions.
 	local city = cell.name and string.split(cell.name, ",")[1] or "wilderness"
 

@@ -9,6 +9,8 @@ local cellTypeUtil = require("NPCs Go Home.util.cellTypeUtil")
 local enum = require("NPCs Go Home.enum")
 local goHome = require("NPCs Go Home.components.goHome")
 local lockDoors = require("NPCs Go Home.components.lockDoors")
+local nameUtil = require("NPCs Go Home.util.nameUtil")
+local publicHouse = require("NPCs Go Home.components.publicHouse")
 local runtimeData = require("NPCs Go Home.components.runtimeData")
 local util = require("NPCs Go Home.util")
 dofile("NPCs Go Home.mcm")
@@ -41,7 +43,7 @@ local function updatePlayerTrespass(cell, previousCell)
 
 	local inCity = previousCell and (previousCell.id:match(cell.id) or cell.id:match(previousCell.id))
 
-	if util.isInteriorCell(cell) and not util.isIgnoredCell(cell) and not util.isPublicHouse(cell) and inCity then
+	if util.isInteriorCell(cell) and not util.isIgnoredCell(cell) and not publicHouse.isPublicHouse(cell) and inCity then
 		if util.isNight() then
 			tes3.player.data.NPCsGoHome.intruding = true
 		else
@@ -80,6 +82,7 @@ local function checkEnteredPublicHouse(cell, city)
 	end
 end
 
+-- TODO this can be implemented with dialogue.
 ---@param e activateEventData
 local function onActivate(e)
 	if e.activator ~= tes3.player or e.target.object.objectType ~= tes3.objectType.npc or not config.disableInteraction then
@@ -116,12 +119,12 @@ local function applyChanges(cell)
 
 	-- Interior cells, except Canton cells, don't do anything
 	if util.isInteriorCell(cell) and
-		not (config.cantonCellsPolicy == enum.cantonPolicy.exterior and util.isCantonWorksCell(cell)) then
+		not (config.cantonCellsPolicy == enum.cantonPolicy.exterior and nameUtil.isCantonWorksCell(cell)) then
 		return
 	end
 
 	-- Don't do anything to public houses
-	if util.isPublicHouse(cell) then return end
+	if publicHouse.isPublicHouse(cell) then return end
 
 	-- Deal with NPCs and mounts/pets in cell
 	goHome.processNPCs(cell)

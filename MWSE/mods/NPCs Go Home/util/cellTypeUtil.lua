@@ -2,7 +2,8 @@ local enum = require("NPCs Go Home.enum")
 
 local cellType = {}
 
--- TODO: pick this better
+-- TODO: consider consolidating with nameUtil module
+-- TODO: pick this better, i18n
 ---@param cell tes3cell
 ---@return NPCsGoHome.publicHouseType|integer
 function cellType.pickPublicHouseType(cell)

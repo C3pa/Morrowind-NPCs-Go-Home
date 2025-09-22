@@ -28,7 +28,7 @@ function goHome.searchCellsForPositions()
 	for _, cell in pairs(tes3.getActiveCells()) do
 		updatePositions(cell)
 		for door in cell:iterateReferences(tes3.objectType.door) do
-			if not door.destination then
+			if not util.isTeleportDoor(door) then
 				goto continue
 			end
 			updatePositions(door.destination.cell)
@@ -231,7 +231,7 @@ function goHome.loadRuntimeDataFromNPCData()
 	for _, cell in pairs(tes3.getActiveCells()) do
 		loadRuntimeData(cell)
 		for door in cell:iterateReferences(tes3.objectType.door) do
-			if door.destination then
+			if util.isTeleportDoor(door) then
 				-- Then check cells attached to active cells
 				loadRuntimeData(door.destination.cell)
 			end
