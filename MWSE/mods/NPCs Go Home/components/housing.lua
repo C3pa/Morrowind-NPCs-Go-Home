@@ -75,7 +75,7 @@ local function insertNPCHome(npc, isHome, homeCell, position, orientation)
 	return entry
 end
 
-
+local doorMarkerId = "DoorMarker"
 
 -- Looks through doors to find a cell that matches a wandering NPCs name
 ---@param cell tes3cell
@@ -119,9 +119,22 @@ function housing.pickHomeForNPC(cell, npcRef)
 	local dest = publicHouse.pickPublicHouseForNPC(cell, npcRef, city)
 
 	if dest then
-		-- TODO consider storing door marker position/orientation and returning it from publicHouse.pickPublicHouseForNPC
-		-- other option is to traverse cell's pathgrid and take the coords of a pathgrid node.
-		return insertNPCHome(npc, false, dest)
+		-- All, even unloaded, cells in Morrowind always have available their NPC, teleport door and DoorMarkers
+		-- loaded. We use that fact to get a point inside the cell. This may not be the optimal point in the cell
+		-- to put the NPCs.
+
+		-- TODO other option is to traverse cell's pathgrid and take the coords of a pathgrid node.
+
+		local position, orientation
+		for ref in cell:iterateReferences(tes3.objectType.static) do
+			if ref.id == doorMarkerId then
+				position = ref.position
+				orientation = ref.orientation
+				break
+			end
+		end
+
+		return insertNPCHome(npc, false, dest, position, orientation)
 	end
 end
 
