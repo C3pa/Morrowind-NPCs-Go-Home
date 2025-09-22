@@ -126,7 +126,6 @@ function util.isFollower(reference)
 	return true
 end
 
-
 -- todo: more quest aware checks like this
 local function fargothCheck()
 	local fargothJournal = tes3.getJournalIndex({ id = "MS_Lookout" })
@@ -231,20 +230,27 @@ local function offersTravel(npc)
 	return false
 end
 
+-- Imperial carriages
+---@param object tes3creature|tes3npc
+local function isCarriage(object)
+	return object.id:match("_[Hh]rs") and object.mesh:match("_[Hh]orse")
+end
+
 -- Travel agents, their steeds, and argonians stick around
 ---@param npcRef tes3reference
 function util.isBadWeatherNPC(npcRef)
 	local npc = npcRef.object
 	local race = npc.race.id
 	local offersTravel = offersTravel(npcRef)
-	local is = offersTravel or config.ignoresBadWeatherRace[race] or config.ignoresBadWeatherClass[npc.class.id]
+	local is = offersTravel
+			   or config.ignoresBadWeatherRace[race]
+			   or config.ignoresBadWeatherClass[npc.class.id]
+			   or isCarriage(npc)
 	log:trace("%s, %s%s is inclement weather NPC? %s", npc.name, race, offersTravel and ", travel agent" or "", is)
 	return is
 end
 
 ---@param creature tes3reference
----@return boolean isPet
----@return boolean? isLinkedToTravelNPC
 function util.isPet(creature)
 	local obj = creature.baseObject and creature.baseObject or creature.object
 
@@ -252,12 +258,11 @@ function util.isPet(creature)
 	-- Pack guars
 	if obj.id:match("guar") and obj.mesh:match("pack") then
 		return true
-		-- Imperial carriages
-	elseif obj.id:match("_[Hh]rs") and obj.mesh:match("_[Hh]orse") then
-		return true, true
+	elseif isCarriage(obj) then
+		return true
 	end
 
-	return false, false
+	return false
 end
 
 ---@param activator tes3reference

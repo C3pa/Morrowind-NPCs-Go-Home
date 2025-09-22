@@ -1,392 +1,82 @@
+local ActorManager = require("NPCs Go Home.components.ActorManager")
 local config = require("NPCs Go Home.config")
-local housing = require("NPCs Go Home.components.housing")
-local positions = require("NPCs Go Home.data.positions")
-local runtimeData = require("NPCs Go Home.components.runtimeData")
+local enum = require("NPCs Go Home.enum")
 local util = require("NPCs Go Home.util")
 
 
+-- TODO: remove/move this from housing.lua
+local contextualNPCs = { "^am_", "^sf_" }
+local manager = ActorManager:new()
 local log = mwse.Logger.new()
+
+
+---@param ref tes3reference
+---@return boolean valid
+local function isValidNPC(ref)
+	-- TODO: Consider checking if the actor has a AI Wander package here.
+
+	local npc = ref.baseObject --[[@as tes3npc]]
+	local lowerId = string.lower(npc.id)
+	-- Don't move contextual, such as Animated Morrowind NPCs et al.
+	for _, str in pairs(contextualNPCs) do
+		if lowerId:match(str) then
+			return false
+		end
+	end
+	return not util.isIgnoredNPC(ref)
+end
+
 local goHome = {}
 
-
--- Create an in memory list of positions for a cell, to ensure multiple NPCs aren't placed in the same spot.
----@param cell tes3cell
-local function updatePositions(cell)
-	local id = cell.id
-	-- update runtime positions in cell, but don't overwrite loaded positions
-	-- TODO: keys in these tables aren't lowercase
-	if not runtimeData.availablePositions[id] and positions.cells[id] then
-		runtimeData.availablePositions[id] = {}
-		for _, data in pairs(positions.cells[id]) do
-			table.insert(runtimeData.availablePositions[id], data)
-		end
+---@param e referenceActivatedEventData
+function goHome.onReferenceActivated(e)
+	local ref = e.reference
+	local objectType = ref.object.objectType
+	if objectType == tes3.objectType.npc and isValidNPC(ref) then
+		manager:addActor(ref, ref.cell, enum.actorType.npc)
+	elseif objectType == tes3.objectType.creature and util.isPet(ref) then
+		manager:addActor(ref, ref.cell, enum.actorType.creature)
+	elseif objectType == tes3.objectType.activator and util.isSiltStrider(ref) then
+		manager:addActor(ref, ref.cell, enum.actorType.siltStrider)
 	end
 end
 
--- TODO: make this recursive?
-function goHome.searchCellsForPositions()
-	for _, cell in pairs(tes3.getActiveCells()) do
-		updatePositions(cell)
-		for door in cell:iterateReferences(tes3.objectType.door) do
-			if not util.isTeleportDoor(door) then
-				goto continue
+function goHome.onLoaded()
+	manager:clearAllActors()
+	for _, cell in ipairs(tes3.getActiveCells()) do
+		for npcRef in cell:iterateReferences(tes3.objectType.npc) do
+			if isValidNPC(npcRef) then
+				manager:addActor(npcRef, cell, enum.actorType.npc)
 			end
-			updatePositions(door.destination.cell)
-			-- one more time
-			for internalDoor in door.destination.cell:iterateReferences(tes3.objectType.door) do
-				if internalDoor.destination and internalDoor.destination.cell ~= cell then
-					updatePositions(internalDoor.destination.cell)
+		end
+		for creatureRef in cell:iterateReferences(tes3.objectType.creature) do
+			if util.isPet(creatureRef) then
+				manager:addActor(creatureRef, cell, enum.actorType.creature)
+			end
+		end
+
+		-- For Silt Striders we only disable them in towns. There are mods that add Silt Striders in the wilderness.
+		-- We don't disable those. Examples of such mods:
+		-- https://www.nexusmods.com/morrowind/mods/49103
+		-- https://www.nexusmods.com/morrowind/mods/53537
+		if cell.restingIsIllegal then
+			for activator in cell:iterateReferences(tes3.objectType.activator) do
+				if util.isSiltStrider(activator) then
+					manager:addActor(activator, cell, enum.actorType.siltStrider)
 				end
 			end
-
-			:: continue ::
 		end
+
 	end
 end
 
----@param npcData NPCsGoHome.movedNPCData[]
-local function putNPCsBack(npcData)
-	log:debug("Moving back NPCs:\n%s", npcData)
-	for _, data in ipairs(npcData) do
-		local handle = data.npc
-		if not handle:valid() then
-			log:warn("Invalid NPC reference handle for moved NPC. Can't move back. Stack traceback: %s",
-				debug.traceback())
-			goto continue
-		end
-		local npc = handle:getObject()
-		local npcObject = npc.object
-
-		log:debug("Moving %s back outside to %s %s", npcObject.name, data.ogPlace.id, data.ogPosition)
-
-		-- Unset NPC data so we don't try to move them on load.
-		npc.data.NPCsGoHome = nil
-
-		-- And put them back
-		tes3.positionCell({
-			cell = data.ogPlace,
-			reference = npc,
-			position = data.ogPosition,
-			orientation = data.ogPlace
-		})
-		:: continue ::
-	end
-
-	-- Reset loaded position data
-	runtimeData.availablePositions = {}
-	goHome.searchCellsForPositions()
+---@param e referenceDeactivatedEventData
+function goHome.onReferenceDeactivated(e)
+	manager:onReferenceDeactivated(e.reference)
 end
 
----@param npcs mwseSafeObjectHandle[]
-local function reEnableNPCs(npcs)
-	log:debug("Re-enabling NPCs:\n%s", npcs)
-	for _, handle in ipairs(npcs) do
-		if not handle:valid() then
-			goto continue
-		end
-		local ref = handle:getObject()
-		log:debug("Making attempt at re-enabling %s", ref.id)
-		-- TODO: is this check even necessary?
-		if not ref.object then
-			goto continue
-		end
-		if ref.disabled then
-			tes3.setEnabled({ reference = ref })
-		end
-		ref.data.NPCsGoHome = nil
-
-		:: continue ::
-	end
-end
-
----@param cell tes3cell
----@return fun(): tes3reference, keep: boolean
-local function iterateNPCs(cell)
-	local function iterator()
-		for npc in cell:iterateReferences(tes3.objectType.npc) do
-			if not util.isIgnoredNPC(npc) then
-				local keep = util.isBadWeatherNPC(npc)
-				coroutine.yield(npc, keep)
-			end
-		end
-	end
-	return coroutine.wrap(iterator)
-end
-
----@param homeData NPCsGoHome.movedNPCData
-local function moveNPC(homeData)
-	local handle = homeData.npc
-	if not handle:valid() then
-		log:warn("Invalid NPC reference handle. Stack traceback: %s", debug.traceback())
-		return
-	end
-	local npc = handle:getObject()
-	log:debug("Moving %s to home %s (%s, %s, %s)", npc.object.name,
-		homeData.home.id, homeData.homePosition.x, homeData.homePosition.y, homeData.homePosition.z)
-	local ogPlaceName = homeData.ogPlaceName
-
-	-- Add to the cached table
-	if util.isBadWeatherNPC(npc) then
-		local moved = runtimeData.NPCs.movedBadWeather
-		moved[ogPlaceName] = moved[ogPlaceName] or {}
-		table.insert(moved[ogPlaceName], homeData)
-	else
-		local moved = runtimeData.NPCs.moved
-		moved[ogPlaceName] = moved[ogPlaceName] or {}
-		table.insert(moved[ogPlaceName], homeData)
-	end
-
-	-- Store necessary info to npc.data, so we can move NPCs back after a load.
-	npc.data.NPCsGoHome = {
-		position = { x = npc.position.x, y = npc.position.y, z = npc.position.z },
-		orientation = { x = npc.orientation.x, y = npc.orientation.y, z = npc.orientation.z },
-		cell = ogPlaceName
-	}
-
-	tes3.positionCell({
-		cell = homeData.home,
-		reference = npc,
-		position = homeData.homePosition,
-		orientation = homeData.homeOrientation
-	})
-end
-
----@param npc tes3reference
----@param cell tes3cell
-local function disableNPC(npc, cell)
-	log:debug("Disabling un-homed %s", npc.id)
-	local handle = tes3.makeSafeObjectHandle(npc)
-	if util.isBadWeatherNPC(npc) then
-		local disabled = runtimeData.NPCs.disabledBadWeather
-		disabled[cell.id] = disabled[cell.id] or {}
-		table.insert(disabled[cell.id], handle)
-	else
-		local disabled = runtimeData.NPCs.disabled
-		disabled[cell.id] = disabled[cell.id] or {}
-		table.insert(disabled[cell.id], handle)
-	end
-
-	npc.data.NPCsGoHome = { disabled = true }
-	-- npc:disable() -- ! this one sometimes causes crashes
-	-- mwscript.disable({reference = npc}) -- ! this one is deprecated
-	tes3.setEnabled({ reference = npc, enabled = false }) -- ! but this one causes crashes too
-end
-
----@param npc tes3reference
----@param cell tes3cell
-local function disableOrMove(npc, cell)
-	local npcHome = config.moveNPCs and housing.pickHomeForNPC(cell, npc) or nil
-	if npcHome then
-		moveNPC(npcHome)
-	else
-		disableNPC(npc, cell)
-	end
-end
-
--- Search in a specific cell for moved or disabled NPCs and update our runtimeData.
----@param cell tes3cell
-local function loadRuntimeData(cell)
-	local cellId = cell.id
-	log:debug("Looking for moved NPCs in cell %s", cellId)
-	for npc in cell:iterateReferences(tes3.objectType.npc) do
-		if not (npc.data and npc.data.NPCsGoHome) then
-			goto continue
-		end
-		local data = npc.data.NPCsGoHome
-		local handle = tes3.makeSafeObjectHandle(npc)
-		local isBadWeather = util.isBadWeatherNPC(npc)
-		log:trace("%s has NPCsGoHome data, deciding if disabled or moved...%s", npc, data)
-
-		if data.disabled then
-			-- The NPC was disabled.
-			if isBadWeather then
-				local disabled = runtimeData.NPCs.disabledBadWeather
-				disabled[cellId] = disabled[cellId] or {}
-				table.insert(disabled[cellId], handle)
-			else
-				local disabled = runtimeData.NPCs.disabled
-				disabled[cellId] = disabled[cellId] or {}
-				table.insert(disabled[cellId], handle)
-			end
-		else
-			-- NPC sent home.
-			local homeData = runtimeData.insertNPCHome(npc, cell, tes3.getCell({ id = data.cell }),
-				true, data.position, data.orientation)
-			local ogPlaceName = homeData.ogPlaceName
-			if isBadWeather then
-				local moved = runtimeData.NPCs.movedBadWeather
-				moved[ogPlaceName] = moved[ogPlaceName] or {}
-				table.insert(moved[ogPlaceName], homeData)
-			else
-				local moved = runtimeData.NPCs.moved
-				moved[ogPlaceName] = moved[ogPlaceName] or {}
-				table.insert(moved[ogPlaceName], homeData)
-			end
-		end
-		:: continue ::
-	end
-end
-
-function goHome.loadRuntimeDataFromNPCData()
-	for _, cell in pairs(tes3.getActiveCells()) do
-		loadRuntimeData(cell)
-		for door in cell:iterateReferences(tes3.objectType.door) do
-			if util.isTeleportDoor(door) then
-				-- Then check cells attached to active cells
-				loadRuntimeData(door.destination.cell)
-			end
-		end
-	end
-end
-
----@param cell tes3cell
-function goHome.processNPCs(cell)
-	log:info("Looking for NPCs to send home in: %s.", cell.id)
-
-	local isNight = util.isNight()
-	local isBadWeather = util.isInclementWeather()
-
-	if not cell.restingIsIllegal and not config.disableNPCsInWilderness then
-		-- Shitty way of implementing this config option and re-enabling NPCs when it gets turned off
-		-- but at least it's better than trying to keep track of NPCs that have been disabled in the wilderness
-		log:debug("Shitty hack ACTIVATE! It's now not night, and the weather is great.")
-		isNight = false
-		isBadWeather = false
-	end
-
-	if not config.disableNPCs
-		or not (isBadWeather or isNight) then
-		log:trace("!!Good weather and not night!!")
-		if not table.empty(runtimeData.NPCs.moved[cell.id]) then
-			putNPCsBack(runtimeData.NPCs.moved[cell.id])
-			runtimeData.NPCs.moved[cell.id] = {}
-		end
-		if not table.empty(runtimeData.NPCs.movedBadWeather[cell.id]) then
-			putNPCsBack(runtimeData.NPCs.movedBadWeather[cell.id])
-			runtimeData.NPCs.movedBadWeather[cell.id] = {}
-		end
-		if not table.empty(runtimeData.NPCs.disabled[cell.id]) then
-			reEnableNPCs(runtimeData.NPCs.disabled[cell.id])
-			runtimeData.NPCs.disabled[cell.id] = {}
-		end
-		if not table.empty(runtimeData.NPCs.disabledBadWeather[cell.id]) then
-			reEnableNPCs(runtimeData.NPCs.disabledBadWeather[cell.id])
-			runtimeData.NPCs.disabledBadWeather[cell.id] = {}
-		end
-		return
-	end
-
-	if isBadWeather and not isNight then
-		log:trace("!!Bad weather and not night!!")
-		-- Bad weather during the day, so disable some NPCs.
-		for npc, keep in iterateNPCs(cell) do
-			if not keep or not config.keepBadWeatherNPCs then
-				disableOrMove(npc, cell)
-			end
-		end
-
-		-- Check for bad weather NPCs that have been disabled, and re-enable them.
-		if config.keepBadWeatherNPCs then
-			if not table.empty(runtimeData.NPCs.movedBadWeather[cell.id]) then
-				putNPCsBack(runtimeData.NPCs.movedBadWeather[cell.id])
-				runtimeData.NPCs.movedBadWeather[cell.id] = {}
-			end
-			if not table.empty(runtimeData.NPCs.disabledBadWeather[cell.id]) then
-				reEnableNPCs(runtimeData.NPCs.disabledBadWeather[cell.id])
-				runtimeData.NPCs.disabledBadWeather[cell.id] = {}
-			end
-		end
-	elseif isNight then
-		log:trace("!!Good or bad weather and night!!")
-		-- at night, weather doesn't matter, disable everyone
-		for npc in iterateNPCs(cell) do
-			if not npc.disabled then
-				disableOrMove(npc, cell)
-			end
-		end
-	end
-end
-
----@param cell tes3cell
----@return fun(): tes3reference, linkedToTravel: boolean
-local function iteratePets(cell)
-	local function iterator()
-		for creature in cell:iterateReferences(tes3.objectType.creature) do
-			local isPet, linkedToTravel = util.isPet(creature)
-			if isPet then
-				coroutine.yield(creature, linkedToTravel)
-			end
-		end
-	end
-	return coroutine.wrap(iterator)
-end
-
--- TODO: maybe rewrite this one like processNPCs() too
--- Deal with trader's guars, and other npc linked creatures/whatever
----@param cell tes3cell
-function goHome.processPets(cell)
-	local isNight = util.isNight()
-	local isBadWeather = util.isInclementWeather()
-
-	log:info("Looking for NPC pets to process in cell: %s", cell.id)
-
-	if not cell.restingIsIllegal and not config.disableNPCsInWilderness then
-		log:debug("Shitty hack ACTIVATE! It's not night, and the weather is great now.")
-		isNight = false
-		isBadWeather = false
-	end
-
-	-- TODO: should also mark which pets were disabled.
-	for pet, linkedToTravel in iteratePets(cell) do
-		-- This is becoming too much lol
-		if config.disableNPCs and
-			(isNight or (isBadWeather and (not linkedToTravel or (linkedToTravel and not config.keepBadWeatherNPCs)))) then
-			if not pet.disabled then
-				log:debug("Disabling NPC Pet %s!", pet.object.id)
-				tes3.setEnabled({ reference = pet, enabled = false })
-			end
-		else
-			-- TODO: this can enable creatures not disabled by this mod.
-			if pet.disabled then
-				log:debug("Enabling NPC Pet %s!", pet.object.id)
-				tes3.setEnabled({ reference = pet })
-			end
-		end
-	end
-end
-
----@param cell tes3cell
----@return fun(): tes3reference
-local function iterateSilts(cell)
-	local function iterator()
-		for activator in cell:iterateReferences(tes3.objectType.activator) do
-			if util.isSiltStrider(activator) then
-				coroutine.yield(activator)
-			end
-		end
-	end
-	return coroutine.wrap(iterator)
-end
-
--- TODO: maybe deal with these like NPCs, adding to runtime data
--- TODO: and setting ref.data.NPCsGoHome = {disabled = true}
--- TODO: would have to check for them on load/cell change as well
----@param cell tes3cell
-function goHome.processSiltStriders(cell)
-	log:info("Looking for silt striders to process in cell: %s", cell.id)
-
-	local isNight = util.isNight()
-	local isBadWeather = util.isInclementWeather()
-
-	-- TODO: below assumption isn't correct. There are mods that add Silts Striders in the wild. For example:
-	-- https://www.nexusmods.com/morrowind/mods/53537
-	-- https://www.nexusmods.com/morrowind/mods/49103
-	-- I don't think there are any silt striders in wilderness cells so not bothering with config.disableNPCsInWilderness
-	local disable = config.disableNPCs and (isNight or (isBadWeather and not config.keepBadWeatherNPCs))
-	for silt in iterateSilts(cell) do
-		log:debug("Setting silt strider to disabled: %s!", silt.object.name, disable)
-		tes3.setEnabled({ reference = silt, enabled = not disable })
-	end
+function goHome.update()
+	manager:update()
 end
 
 return goHome
