@@ -55,6 +55,7 @@ function goHome.onLoaded()
 			end
 		end
 
+		-- TODO: make this feature optional
 		-- For Silt Striders we only disable them in towns. There are mods that add Silt Striders in the wilderness.
 		-- We don't disable those. Examples of such mods:
 		-- https://www.nexusmods.com/morrowind/mods/49103
@@ -66,8 +67,8 @@ function goHome.onLoaded()
 				end
 			end
 		end
-
 	end
+	manager:update()
 end
 
 ---@param e referenceDeactivatedEventData
