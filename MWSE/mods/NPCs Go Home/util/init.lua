@@ -102,7 +102,7 @@ local followPackage = {
 --- follow AI package with the player as its target.
 ---@param reference tes3reference
 ---@return boolean isFollower
-local function isFollower(reference)
+function util.isFollower(reference)
 	local mobile = reference.mobile
 	if not mobile then
 		return false
@@ -158,7 +158,7 @@ function util.isIgnoredNPC(npcRef)
 	local isFargoth = npc.id:match("fargoth")
 	local isFargothActive = isFargoth and fargothCheck() or false
 	local isClassBlacklisted = config.classBlacklist[npc.class.id:lower()]
-	local isFollower = isFollower(npcRef)
+	local isFollower = util.isFollower(npcRef)
 	log:trace("Checking NPC: %s (%s or %s): \z
 				isNPCBlacklisted: %s, %s isPluginBlacklisted: %s, class: &s, \z
 				isClassBlacklisted: %s, guard: %s, dead: %s, vampire: %s, werewolf: %s, \z

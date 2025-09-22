@@ -138,9 +138,8 @@ local function insertPublicPlace(publicCell, cellName, city, type, proprietor)
 	-- Use shitty type picker if none specified
 	type = type or nameUtil.pickPublicHouseType(publicCell)
 	local factionId
-	if proprietor then
-		local faction = proprietor.object.faction
-		factionId = faction.id
+	if proprietor and proprietor.object.faction then
+		factionId = proprietor.object.faction.id
 	else
 		factionId = pickCellFaction(publicCell)
 	end
@@ -154,7 +153,8 @@ local function insertPublicPlace(publicCell, cellName, city, type, proprietor)
 		worth = calculateCellWorth(publicCell, proprietor),
 		faction = factionId
 	}
-	publicPlaces[city][publicCell.id] = data
+	local cityPlaces = table.getset(publicPlaces, city, {})
+	cityPlaces[publicCell.id] = data
 	return data
 end
 
