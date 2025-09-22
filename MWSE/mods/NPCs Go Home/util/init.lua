@@ -306,4 +306,15 @@ function util.isTeleportDoor(door)
 	return false
 end
 
+---@param t NPCsGoHome.vector3Table
+function util.toVector(t)
+	return tes3vector3.new(t.x, t.y, t.z)
+end
+
+---@param vector tes3vector3
+---@return NPCsGoHome.vector3Table
+function util.toTable(vector)
+	return { x = vector.x, y = vector.y, z = vector.z }
+end
+
 return util
