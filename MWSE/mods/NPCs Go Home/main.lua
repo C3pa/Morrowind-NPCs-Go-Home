@@ -5,7 +5,6 @@ local log = mwse.Logger.new({
 	logLevel = config.logLevel,
 })
 
-local cellTypeUtil = require("NPCs Go Home.util.cellTypeUtil")
 local enum = require("NPCs Go Home.enum")
 local goHome = require("NPCs Go Home.components.goHome")
 local lockDoors = require("NPCs Go Home.components.lockDoors")
@@ -58,7 +57,7 @@ end
 ---@param cell tes3cell
 ---@param city string
 local function checkEnteredPublicHouse(cell, city)
-	local typeOfPub = cellTypeUtil.pickPublicHouseType(cell)
+	local typeOfPub = nameUtil.pickPublicHouseType(cell)
 
 	-- TODO: this probably needs to index the .byType table instead.
 	local publicHouse = runtimeData.publicHouses.byName[city] and

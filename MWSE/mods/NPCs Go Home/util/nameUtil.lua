@@ -1,7 +1,8 @@
--- TODO: multiple functions in this module need i18n
+local enum = require("NPCs Go Home.enum")
+
 
 local nameUtil = {}
-
+-- TODO: multiple functions in this module need i18n
 -- Removes "the whatever" from the NPCs name. For example for M'Aiq the Liar it returns M'Aiq.
 ---@param name string
 function nameUtil.removeTitle(name)
@@ -65,5 +66,25 @@ function nameUtil.isCantonWorksCell(cell)
 	end
 	return false
 end
+
+-- TODO: pick this better, i18n
+---@param cell tes3cell
+---@return NPCsGoHome.publicHouseType|integer
+function nameUtil.pickPublicHouseType(cell)
+	local id = cell.id:lower()
+	if id:match("guild") then
+		return enum.publicHouse.guildhalls
+	elseif id:match("temple") then
+		return enum.publicHouse.temples
+	elseif id:match("canalworks") or cell.id:match("waistworks") then
+		return enum.publicHouse.cantons
+	elseif (id:match("house") and not id:match("trade"))
+		or id:match("manor")
+		or id:match("tower") then
+		return enum.publicHouse.homes
+	end
+	return enum.publicHouse.inns
+end
+
 
 return nameUtil

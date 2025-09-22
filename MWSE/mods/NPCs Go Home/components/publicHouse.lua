@@ -1,4 +1,3 @@
-local cellTypeUtil = require("NPCs Go Home.util.cellTypeUtil")
 local config = require("NPCs Go Home.config")
 local enum = require("NPCs Go Home.enum")
 local nameUtil = require("NPCs Go Home.util.nameUtil")
@@ -137,7 +136,7 @@ local exploredExteriors = {}
 ---@param proprietor? tes3reference
 local function insertPublicPlace(publicCell, cellName, city, type, proprietor)
 	-- Use shitty type picker if none specified
-	type = type or cellTypeUtil.pickPublicHouseType(publicCell)
+	type = type or nameUtil.pickPublicHouseType(publicCell)
 	local factionId
 	if proprietor then
 		local faction = proprietor.object.faction
@@ -264,7 +263,7 @@ function publicHouse.isPublicHouse(cell)
 			log:debug("%s is %s%% faction %s, marking public.", cellName, info.percentage, factionId)
 
 			-- Try id based categorization, but fallback on guildhall
-			local type = cellTypeUtil.pickPublicHouseType(cell)
+			local type = nameUtil.pickPublicHouseType(cell)
 			if type == enum.publicHouse.inns then
 				type = enum.publicHouse.guildhalls
 			end

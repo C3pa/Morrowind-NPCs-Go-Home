@@ -1,4 +1,4 @@
-local cellTypeUtil = require("NPCs Go Home.util.cellTypeUtil")
+local nameUtil = require("NPCs Go Home.util.nameUtil")
 local npcEvaluator = require("NPCs Go Home.components.npcEvaluator")
 local positions = require("NPCs Go Home.data.positions")
 
@@ -56,7 +56,7 @@ local runtimeData = {
 ---@param cellFaction string
 ---@param type? NPCsGoHome.publicHouseType|integer
 function runtimeData.insertPublicHouse(publicCell, proprietor, city, name, cellWorth, cellFaction, type)
-	local typeOfPub = type or cellTypeUtil.pickPublicHouseType(publicCell) -- Use shitty type picker if none specified
+	local typeOfPub = type or nameUtil.pickPublicHouseType(publicCell) -- Use shitty type picker if none specified
 
 	local proprietorName = proprietor and proprietor.object.name or "no one"
 

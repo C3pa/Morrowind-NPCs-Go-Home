@@ -1,5 +1,4 @@
 local config = require("NPCs Go Home.config")
-local enum = require("NPCs Go Home.enum")
 local nameUtil = require("NPCs Go Home.util.nameUtil")
 local publicHouse = require("NPCs Go Home.components.publicHouse")
 local util = require("NPCs Go Home.util")
