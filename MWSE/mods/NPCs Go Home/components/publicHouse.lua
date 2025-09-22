@@ -163,7 +163,6 @@ local templePattern = "temple"
 local bladesFactionId = "Blades"
 
 -- Checks NPC class and faction in cells for block list and adds to publicPlaces list
--- TODO: rewrite this
 ---@param cell tes3cell
 function publicHouse.isPublicHouse(cell)
 	-- Public spaces can only be interior cells.
@@ -385,6 +384,13 @@ function publicHouse.pickPublicHouseForNPC(cell, npcRef, city)
 	if choice then
 		log:debug("Picking works %s, %s for %s", choice.city, choice.name, npcRef.object.name)
 		return choice.cell
+	end
+end
+
+function publicHouse.getPublicHouse(cell)
+	if publicHouse.isPublicHouse(cell) then
+		local city = nameUtil.getCityAndBuildingName(cell)
+		return publicPlaces[city][cell.id]
 	end
 end
 

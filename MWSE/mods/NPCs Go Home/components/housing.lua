@@ -159,4 +159,14 @@ function housing.pickHomeForNPC(cell, npcRef)
 	end
 end
 
+---@param cellId string
+---@return string|nil npcId, NPCsGoHome.house|nil house
+function housing.getHome(cellId)
+	for npcId, house in pairs(homes) do
+		if house.cellId == cellId then
+			return npcId, house
+		end
+	end
+end
+
 return housing

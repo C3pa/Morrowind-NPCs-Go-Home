@@ -126,7 +126,6 @@ function util.isFollower(reference)
 	return true
 end
 
--- todo: more quest aware checks like this
 local function fargothCheck()
 	local fargothJournal = tes3.getJournalIndex({ id = "MS_Lookout" })
 	if not fargothJournal then return false end
@@ -165,7 +164,6 @@ function util.isIgnoredNPC(npcRef)
 		name, npcRef.object.id, npcRef.object.baseObject and npcRef.object.baseObject.id or "nil",
 		config.npcBlacklist[id], sourceMod, config.pluginBlacklist[sourceMod], npc.class,
 		isClassBlacklisted, isGuard, isDead, isVampire, isWerewolf,
-		-- TODO:
 		isFollower, isHostile, isFargoth and ", fargoth active: " or "", isFargoth and tostring(isFargothActive) or "")
 
 
