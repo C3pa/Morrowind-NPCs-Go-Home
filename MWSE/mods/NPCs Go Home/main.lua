@@ -6,13 +6,14 @@ local log = mwse.Logger.new({
 })
 
 local enum = require("NPCs Go Home.enum")
-local goHome = require("NPCs Go Home.components.goHome")
-local lockDoors = require("NPCs Go Home.components.lockDoors")
 local nameUtil = require("NPCs Go Home.util.nameUtil")
 local publicHouse = require("NPCs Go Home.components.publicHouse")
 local runtimeData = require("NPCs Go Home.components.runtimeData")
 local util = require("NPCs Go Home.util")
 dofile("NPCs Go Home.mcm")
+
+local goHome = require("NPCs Go Home.modules.goHome")
+local lockDoors = require("NPCs Go Home.modules.lockDoors")
 
 
 local function message(...)
