@@ -46,14 +46,14 @@ local function livesHere(cell, npcName)
 end
 
 
----@class NPCsGoHome.houseData
+---@class NPCsGoHome.house
 ---@field isHome boolean True if this is a home belonging to this npc.
 ---@field cellId string The id of the home.
 ---@field position tes3vector3
 ---@field orientation tes3vector3
 
 -- Indexed by the NPC id.
----@type table<string, NPCsGoHome.houseData>
+---@type table<string, NPCsGoHome.house>
 local homes = {}
 
 ---@param npc tes3npc
@@ -64,7 +64,7 @@ local homes = {}
 local function insertNPCHome(npc, isHome, homeCell, position, orientation)
 	-- TODO: restore picking functionality from data\positions .
 
-	---@type NPCsGoHome.houseData
+	---@type NPCsGoHome.house
 	local entry = {
 		isHome = isHome,
 		cellId = homeCell.id,
@@ -81,6 +81,27 @@ local doorMarkerId = "DoorMarker"
 ---@param cell tes3cell
 ---@param npcRef tes3reference
 function housing.pickHomeForNPC(cell, npcRef)
+	-- Make sure we load NPC's house if we picked one already. This is important because this function
+	-- assumes that the NPC is at original location. If the NPC is moved to another cell, this function
+	-- may give unexpected result.
+	local data = npcRef.data.NPCsGoHome
+	if data then
+		---@cast data NPCsGoHome.npcReferenceData
+		local home = data.house
+		if home then
+			insertNPCHome(npcRef.object,
+				home.isHome,
+				tes3.getCell({ id = home.cellId }),
+				util.toVector(home.position),
+				util.toVector(home.orientation)
+			)
+		end
+		-- We didn't find a house for this NPC before.
+		if data.disabled then
+			return false
+		end
+	end
+
 	local npc = npcRef.baseObject --[[@as tes3npc]]
 	local lowerId = string.lower(npc.id)
 	-- Don't move contextual, such as Animated Morrowind NPCs et al.
