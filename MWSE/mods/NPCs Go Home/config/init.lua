@@ -32,13 +32,17 @@ local default = {
 		["argonian"] = true,
 	},
 	ignoresBadWeatherClass = {
-		["t_pya_seaelf"] = true,
 		["pilgrim"] = true,
+		["t_pya_seaelf"] = true,
 		["t_cyr_pilgrim"] = true,
 		["t_sky_pilgrim"] = true
 	},
 
-
+	---@type table<string, NPCsGoHome.publicHouseType|integer>
+	publicCellOwnerClass = {
+		-- Inns are public
+		["publican"] = enum.publicHouse.inns,
+	},
 	npcBlacklist = {},
 	pluginBlacklist = {
 		-- Ignore abot's creature mods by default
@@ -48,8 +52,12 @@ local default = {
 	classBlacklist = {
 		["dreamers"] = true,
 	},
-	factionBlacklist = {},
-	cellBlacklist = {},
+	-- Cells of these factions are always considered public and the player doesn't need to be a memeber
+	-- for them to be open at night.
+	factionsWithPublicCells = {},
+	cellBlacklist = {
+		["balmora, caius cosades' house"] = true,
+	},
 }
 
 local config = mwse.loadConfig(fileName, default)

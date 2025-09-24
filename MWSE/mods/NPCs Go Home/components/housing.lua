@@ -1,15 +1,17 @@
 local config = require("NPCs Go Home.config")
-local enum = require("NPCs Go Home.enum")
-local runtimeData = require("NPCs Go Home.components.runtimeData")
+local nameUtil = require("NPCs Go Home.util.nameUtil")
+local publicHouse = require("NPCs Go Home.components.publicHouse")
 local util = require("NPCs Go Home.util")
 
 
 local log = mwse.Logger.new()
 local housing = {}
+
 -- TODO: add a better filter for these. Looks like these come from Animated Morrowind. The other
 -- pattern could be for Starfire's NPC additions.
 -- Don't move NPCs whose ids match these, just disable them
-local contextualNPCs = { "^AM_", "^SF_" }
+local contextualNPCs = { "^am_", "^sf_" }
+-- TODO: i18n
 local MANOR = "Manor"
 
 ---@param cellName string
@@ -32,109 +34,139 @@ local function livesInManor(cellName, npcName)
 	return string.match(cellName, sur)
 end
 
-local publicPlaces = {
-	enum.publicHouse.guildhalls, enum.publicHouse.temples
-}
-
----@param npcRef tes3reference
----@param city string
----@return tes3cell|nil
-local function pickPublicHouseForNPC(npcRef, city)
-	-- Look for wandering guild members
-	local availablePublicHouses = runtimeData.publicHouses.byType[city]
-	if not availablePublicHouses then
-		return
+-- Essentially, if npc full name, or surname matches the cell name.
+---@param cell tes3cell
+---@param npcName string
+local function livesHere(cell, npcName)
+	local houseOwner = cell.id:match(npcName)
+	if houseOwner or livesInManor(cell.name, npcName) then
+		return true
 	end
-
-	for _, placeType in ipairs(publicPlaces) do
-		---@param _ string
-		---@param data NPCsGoHome.publicHouseData
-		for _, data in pairs(availablePublicHouses[placeType] or {}) do
-			local handle = data.proprietor
-			local npcFaction = npcRef.object.faction
-			if handle:valid() then
-				local cellFaction = handle:getObject().object.faction
-				if npcFaction == cellFaction then
-				log:debug("Picking %s for %s based on faction.", data.cell.id, npcRef.object.name)
-					return data.cell
-				end
-			end
-
-			-- TODO: this is a fall back.
-			if data.faction == npcFaction.id:lower() then
-				return data.cell
-			end
-
-			:: continue ::
-		end
-	end
-
-	-- TODO: pick an Inn intelligently?
-	-- High class inns for nobles and rich merchants and such
-	-- lower class inns for middle class npcs and merchants
-	-- temple for commoners and the poorest people
-	-- but for now pick one at random
-	local choice = table.choice(availablePublicHouses[enum.publicHouse.inns] or {})
-	if not choice then return end
-	log:debug("Picking inn %s, %s for %s", choice.city, choice.name, npcRef.object.name)
-	return choice.cell
+	return false
 end
+
+
+---@class NPCsGoHome.house
+---@field isHome boolean True if this is a home belonging to this npc.
+---@field cellId string The id of the home.
+---@field position tes3vector3
+---@field orientation tes3vector3
+
+-- Indexed by the NPC id.
+---@type table<string, NPCsGoHome.house>
+local homes = {}
+
+---@param npc tes3npc
+---@param isHome boolean
+---@param homeCell tes3cell
+---@param position tes3vector3
+---@param orientation tes3vector3
+local function insertNPCHome(npc, isHome, homeCell, position, orientation)
+	-- TODO: restore picking functionality from data\positions .
+
+	---@type NPCsGoHome.house
+	local entry = {
+		isHome = isHome,
+		cellId = homeCell.id,
+		position = position,
+		orientation = orientation
+	}
+	homes[string.lower(npc.id)] = entry
+	return entry
+end
+
+local doorMarkerId = "DoorMarker"
 
 -- Looks through doors to find a cell that matches a wandering NPCs name
 ---@param cell tes3cell
----@param npc tes3reference
-function housing.pickHomeForNPC(cell, npc)
-	-- Don't move contextual, such as Animated Morrowind NPCs et al
-	for _, str in pairs(contextualNPCs) do
-		if npc.object.id:match(str) then
-			return
+---@param npcRef tes3reference
+function housing.pickHomeForNPC(cell, npcRef)
+	-- Make sure we load NPC's house if we picked one already. This is important because this function
+	-- assumes that the NPC is at original location. If the NPC is moved to another cell, this function
+	-- may give unexpected result.
+	local data = npcRef.data.NPCsGoHome
+	if data then
+		---@cast data NPCsGoHome.npcReferenceData
+		local home = data.house
+		if home then
+			insertNPCHome(npcRef.object,
+				home.isHome,
+				tes3.getCell({ id = home.cellId }),
+				util.toVector(home.position),
+				util.toVector(home.orientation)
+			)
+		end
+		-- We didn't find a house for this NPC before.
+		if data.disabled then
+			return false
 		end
 	end
 
-	-- Time to pick the "home"
-	local name = npc.object.name:gsub(" the .*$", "") -- remove "the whatever" from NPCs name
-	-- TODO: extract the city name logic into a separate function. This is also present in one of the util functions.
-	local city = cell.name and string.split(cell.name, ",")[1] or "wilderness"
+	local npc = npcRef.baseObject --[[@as tes3npc]]
+	local lowerId = string.lower(npc.id)
+	-- Don't move contextual, such as Animated Morrowind NPCs et al.
+	for _, str in pairs(contextualNPCs) do
+		if lowerId:match(str) then
+			return false
+		end
+	end
 
-	-- Don't need to pick a home if we already have one
-	if runtimeData.homes.byName[name] then
-		return runtimeData.homes.byName[name]
+	-- Time to pick q "home".
+	local name = nameUtil.removeTitle(npc.name)
+	local city = nameUtil.getCityAndBuildingName(cell)
+
+	-- Don't need to pick a home if we already have one.
+	if homes[lowerId] then
+		return homes[lowerId]
 	end
 
 	-- Check if the NPC already has a house
 	for door in cell:iterateReferences(tes3.objectType.door) do
-		if door.destination then
+		if util.isTeleportDoor(door) then
 			local dest = door.destination.cell
-
-			-- Essentially, if npc full name, or surname matches the cell name
-			if dest.id:match(name) or livesInManor(dest.name, name) then
-				return runtimeData.insertNPCHome(npc, dest, cell, true)
+			if livesHere(dest, name) then
+				local marker = door.destination.marker
+				return insertNPCHome(npc, true, dest, marker.position:copy(), marker.orientation:copy())
 			end
 		end
 	end
 
-	-- Haven't found a home, so put them in an inn or guildhall, or inside a canton
+	-- Haven't found a home, so put them in an inn or guildhall, or inside a canton.
 	if not config.homelessWanderersToPublicHouses then
 		return
 	end
 
-	log:debug("Didn't find a home for %s, trying inns", npc.object.name)
-	local dest = pickPublicHouseForNPC(npc, city)
+	log:debug("Didn't find a home for %s, trying inns", npc.name)
+	local dest = publicHouse.pickPublicHouseForNPC(cell, npcRef, city)
 
 	if dest then
-		return runtimeData.insertNPCHome(npc, dest, cell, false)
-	end
+		-- All, even unloaded, cells in Morrowind always have available their NPC, teleport door and DoorMarkers
+		-- loaded. We use that fact to get a point inside the cell. This may not be the optimal point in the cell
+		-- to put the NPCs.
 
-	-- If nothing was found, then we'll settle on Canton works cell, if the cell is a Canton
-	if not util.isCantonCell(cell) then
-		return
-	end
+		-- TODO other option is to traverse cell's pathgrid and take the coords of a pathgrid node.
 
-	local availableHouses = runtimeData.publicHouses.byType[city]
-	local canton = table.choice(availableHouses[enum.publicHouse.cantons] or {})
-	log:debug("Picking works %s, %s for %s", canton.city, canton.name, npc.object.name)
-	if not canton then return end
-	runtimeData.insertNPCHome(npc, canton.cell, cell, false)
+		local position, orientation
+		for ref in cell:iterateReferences(tes3.objectType.static) do
+			if ref.id == doorMarkerId then
+				position = ref.position
+				orientation = ref.orientation
+				break
+			end
+		end
+
+		return insertNPCHome(npc, false, dest, position, orientation)
+	end
+end
+
+---@param cellId string
+---@return string|nil npcId, NPCsGoHome.house|nil house
+function housing.getHome(cellId)
+	for npcId, house in pairs(homes) do
+		if house.cellId == cellId then
+			return npcId, house
+		end
+	end
 end
 
 return housing

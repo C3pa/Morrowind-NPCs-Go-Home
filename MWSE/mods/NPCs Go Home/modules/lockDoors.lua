@@ -1,4 +1,6 @@
 local config = require("NPCs Go Home.config")
+local nameUtil = require("NPCs Go Home.util.nameUtil")
+local publicHouse = require("NPCs Go Home.components.publicHouse")
 local util = require("NPCs Go Home.util")
 
 
@@ -41,7 +43,7 @@ local function isIgnoredDoor(door, homeCellId)
 	end
 
 	-- Don't lock non-cell change doors.
-	if not door.destination then
+	if not util.isTeleportDoor(door) then
 		log:trace("Non-Cell-change door %s, ignoring", door.id)
 		return true
 	end
@@ -53,7 +55,7 @@ local function isIgnoredDoor(door, homeCellId)
 	local inCity = isCityCell(dest.id, homeCellId)
 
 	-- Peek inside doors to look for guild halls, inns and clubs.
-	local leadsToPublicCell = util.isPublicHouse(dest)
+	local leadsToPublicCell = publicHouse.isPublicHouse(dest)
 
 	-- Don't lock unoccupied cells.
 	local hasOccupants = false
@@ -65,7 +67,7 @@ local function isIgnoredDoor(door, homeCellId)
 	end
 
 	-- Don't lock doors to canton cells.
-	local isCantonWorks = util.isCantonWorksCell(dest)
+	local isCantonWorks = nameUtil.isCantonWorksCell(dest)
 
 	log:trace("%s is %s, (%sin a city, is %spublic, %soccupied)",
 		dest.id, util.isIgnoredCell(dest) and "ignored" or "not ignored",
