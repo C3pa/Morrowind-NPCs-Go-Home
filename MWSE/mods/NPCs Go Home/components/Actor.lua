@@ -72,6 +72,11 @@ function Actor:storeAIPackage()
 	end
 	-- TODO: this needs to be update if we start messing with actors that have AI packages other than wander.
 	local package = mobile.aiPlanner:getActivePackage() --[[@as tes3aiPackageWander]]
+	if not package then
+		self.log:warn("No active package for actor.")
+		return
+	end
+
 	local idles = {}
 	for _, node in ipairs(package.idles) do
 		table.insert(idles, node.chance)
