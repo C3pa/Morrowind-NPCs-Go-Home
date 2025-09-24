@@ -130,6 +130,7 @@ function Actor:moveHome()
 		self.log:error("No house found when moving an NPC home.")
 		return
 	end
+	self.log:debug("Going home.")
 	tes3.positionCell({
 		reference = self.reference,
 		cell = house.cellId,
@@ -141,6 +142,7 @@ end
 
 ---@private
 function Actor:moveBack()
+	self.log:debug("Going back")
 	local routine = self:getData().routine
 	tes3.positionCell({
 		reference = self.reference,
@@ -154,6 +156,7 @@ end
 ---@private
 function Actor:disable()
 	if self:getState() ~= enum.actorState.originalLocation then return end
+	self.log:debug("Disabling")
 	self.reference:disable()
 	self:setState(enum.actorState.disabled)
 	local data = self:getData()
@@ -163,6 +166,7 @@ end
 ---@private
 function Actor:enable()
 	if self:getState() ~= enum.actorState.disabled then return end
+	self.log:debug("Enabling")
 	self.reference:enable()
 	self:setState(enum.actorState.originalLocation)
 	local data = self:getData()
@@ -181,18 +185,22 @@ end
 ---@param isNight boolean
 ---@param isBadWeather boolean
 function Actor:update(isNight, isBadWeather)
-	if (self.reference.cell.restingIsIllegal and not config.disableNPCsInWilderness)
-	or not config.disableNPCs then
+	self.log:debug("UpdateBefore")
+	if (not config.disableNPCsInWilderness and not self.reference.cell.restingIsIllegal)
+		or not config.disableNPCs then
 		self:goBack()
 		return
 	end
+	self.log:debug("UpdateAfter")
 	local goHome = isNight or isBadWeather
 	-- TODO: restore util.isBadWeatherNPC check. Those NPCs shouldn't be disabled on bad weather.
 	-- + config.keepBadWeatherNPCs
 	if goHome then
 		if config.moveNPCs and self:canGoHome() then
+			self.log:debug("Calling moveHome")
 			self:moveHome()
 		else
+			self.log:debug("Calling disable")
 			self:disable()
 		end
 		return
