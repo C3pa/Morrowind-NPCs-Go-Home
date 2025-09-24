@@ -4,6 +4,9 @@ local housing = require("NPCs Go Home.components.housing")
 local ReferenceManager = require("NPCs Go Home.components.ReferenceManager")
 local util = require("NPCs Go Home.util")
 
+
+local log = mwse.Logger.new()
+
 ---@class NPCsGoHome.ActorManager : NPCsGoHome.ReferenceManager
 ---@field private actors table<tes3reference, NPCsGoHome.Actor>
 ---@field new fun(self: NPCsGoHome.ActorManager): NPCsGoHome.ActorManager
@@ -19,7 +22,7 @@ end
 ---@return fun(): NPCsGoHome.Actor
 function ActorManager:iterate()
 	return coroutine.wrap(function()
-		for actor in pairs(self.actors) do
+		for _, actor in pairs(self.actors) do
 			coroutine.yield(actor)
 		end
 	end)
@@ -39,6 +42,7 @@ function ActorManager:addActor(actorRef, cell, actorType)
 end
 
 function ActorManager:update()
+	log:debug("update")
 	local isNight = util.isNight()
 	local isBadWeather = util.isInclementWeather()
 	for actor in self:iterate() do
