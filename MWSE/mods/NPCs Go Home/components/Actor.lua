@@ -18,7 +18,7 @@ function Actor:new(reference, house)
 		reference = reference,
 		hasHouse = house and true or false,
 		log = mwse.Logger.new({
-			name = string.format("Actor: %s", reference.id)
+			moduleName = string.format("Actor: %s", reference.id)
 		})
 	})
 	if not reference.data.NPCsGoHome then

@@ -1,7 +1,6 @@
 local config = require("NPCs Go Home.config")
 
 local log = mwse.Logger.new({
-	name = "NPCs Go Home",
 	logLevel = config.logLevel,
 })
 
@@ -146,7 +145,7 @@ local function onLoaded()
 	if not updateTimer or updateTimer.state ~= timer.active then
 		updateTimer = timer.start({
 			type = timer.game,
-			duration = 1/4,
+			duration = 1 / 4,
 			iterations = -1,
 			callback = goHome.update
 		})
