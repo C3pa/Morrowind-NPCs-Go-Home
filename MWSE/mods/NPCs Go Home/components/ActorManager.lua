@@ -33,6 +33,7 @@ end
 ---@param actorType NPCsGoHome.actorType|integer
 function ActorManager:addActor(actorRef, cell, actorType)
 	if not self:addReference(actorRef) then return end
+	---@type NPCsGoHome.house|nil|boolean
 	local house
 	if actorType ~= enum.actorType.siltStrider then
 		house = housing.pickHomeForNPC(cell, actorRef)

@@ -14,7 +14,8 @@ local publicHouse = {}
 local function isIgnoredNPCLite(npc)
 	local obj = npc.baseObject and npc.baseObject or npc.object
 
-	local isGuard = obj.isGuard or (obj.name and (obj.name:lower():match("guard") and true or false) or false) -- maybe this should just be an if else
+	local isGuard = obj.isGuard or
+		(obj.name and (obj.name:lower():match("guard") and true or false) or false) -- maybe this should just be an if else
 	local isVampire = obj.head and (obj.head.vampiric and true or false) or false
 
 	return config.npcBlacklist[obj.id:lower()] or
@@ -275,8 +276,6 @@ function publicHouse.isPublicHouse(cell)
 	return false
 end
 
-
-
 ---@param cell tes3cell
 local function isExplored(cell)
 	local x = table.getset(exploredExteriors, cell.gridX, {})
@@ -339,9 +338,11 @@ function publicHouse.pickPublicHouseForNPC(cell, npcRef, city)
 	end
 
 	local npcFaction = npcRef.object.faction
-	---@type NPCsGoHome.publicHouseData[]
+	---@type NPCsGoHome.publicCellData[]
 	local availableInns = {}
+	---@type NPCsGoHome.publicCellData[]
 	local availableTemples = {}
+	---@type NPCsGoHome.publicCellData[]
 	local availableCantons = {}
 	for _, data in pairs(availablePlaces) do
 		if npcFaction and factionPlace[data.type] then
@@ -387,6 +388,8 @@ function publicHouse.pickPublicHouseForNPC(cell, npcRef, city)
 	end
 end
 
+---@param cell tes3cell
+---@return NPCsGoHome.publicCellData?
 function publicHouse.getPublicHouse(cell)
 	if publicHouse.isPublicHouse(cell) then
 		local city = nameUtil.getCityAndBuildingName(cell)

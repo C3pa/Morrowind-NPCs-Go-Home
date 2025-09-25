@@ -85,11 +85,12 @@ function housing.pickHomeForNPC(cell, npcRef)
 	-- assumes that the NPC is at original location. If the NPC is moved to another cell, this function
 	-- may give unexpected result.
 	local data = npcRef.data.NPCsGoHome
+	local npc = npcRef.baseObject --[[@as tes3npc]]
 	if data then
 		---@cast data NPCsGoHome.npcReferenceData
 		local home = data.house
 		if home then
-			insertNPCHome(npcRef.object,
+			insertNPCHome(npc,
 				home.isHome,
 				tes3.getCell({ id = home.cellId }),
 				util.toVector(home.position),
@@ -102,7 +103,6 @@ function housing.pickHomeForNPC(cell, npcRef)
 		end
 	end
 
-	local npc = npcRef.baseObject --[[@as tes3npc]]
 	local lowerId = string.lower(npc.id)
 	-- Don't move contextual, such as Animated Morrowind NPCs et al.
 	for _, str in pairs(contextualNPCs) do
