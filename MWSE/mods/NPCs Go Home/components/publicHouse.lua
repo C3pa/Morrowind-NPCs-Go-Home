@@ -127,8 +127,6 @@ end
 -- Indexed by the cell id of the city and interior cell.
 ---@type table<string, table<string, NPCsGoHome.publicCellData>>
 local publicPlaces = {}
----@type table<integer, table<integer, boolean>>
-local exploredExteriors = {}
 
 ---@param publicCell tes3cell The cell to be designated as a public place.
 ---@param cellName string
@@ -276,24 +274,16 @@ function publicHouse.isPublicHouse(cell)
 	return false
 end
 
----@param cell tes3cell
-local function isExplored(cell)
-	local x = table.getset(exploredExteriors, cell.gridX, {})
-	local explored = table.get(x, cell.gridY, false) --[[@as boolean]]
-	return explored
-end
-
----@param cell tes3cell
-local function setExplored(cell)
-	local x = table.getset(exploredExteriors, cell.gridX, {})
-	x[cell.gridY] = true
-end
+---@type table<string, true>
+local exploredExteriors = {}
 
 ---@param cell tes3cell
 ---@param checked table<tes3cell, true>
 local function recursiveExploreInterior(cell, checked)
 	if not cell.isInterior then return end
-	publicHouse.isPublicHouse(cell)
+	if checked[cell] then return end
+	local public = publicHouse.isPublicHouse(cell)
+	log:debug("Exploring cell: %s, isPublic: %s", cell.displayName, public)
 	checked[cell] = true
 	for door in cell:iterateReferences(tes3.objectType.door) do
 		if util.isTeleportDoor(door) then
@@ -309,15 +299,17 @@ local function exploreCity()
 			log:error("exploreCity called in an interior cell!")
 			return
 		end
-		if not isExplored(cell) then
+		if not exploredExteriors[cell.editorName] then
+			log:debug("Exploring cell: %s", cell.editorName)
 			for door in cell:iterateReferences(tes3.objectType.door) do
 				if util.isTeleportDoor(door) then
 					recursiveExploreInterior(door.destination.cell, exploredInteriors)
 				end
 			end
-			setExplored(cell)
+			exploredExteriors[cell.editorName] = true
 		end
 	end
+	log:debug("All currently active exterior cells explored-")
 end
 
 
