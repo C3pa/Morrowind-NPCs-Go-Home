@@ -363,7 +363,7 @@ function publicHouse.pickPublicHouseForNPC(cell, npcRef, city)
 		return choice.cell
 	end
 
-	local choice = table.choice(availableTemples or {})
+	choice = table.choice(availableTemples or {})
 	if choice then
 		log:debug("Picking temple %s, %s for %s", choice.city, choice.name, npcRef.object.name)
 		return choice.cell
@@ -373,7 +373,7 @@ function publicHouse.pickPublicHouseForNPC(cell, npcRef, city)
 	if not util.isCantonCell(cell) then
 		return
 	end
-	local choice = table.choice(availableCantons or {})
+	choice = table.choice(availableCantons or {})
 	if choice then
 		log:debug("Picking works %s, %s for %s", choice.city, choice.name, npcRef.object.name)
 		return choice.cell

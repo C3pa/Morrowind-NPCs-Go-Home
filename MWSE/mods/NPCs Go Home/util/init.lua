@@ -229,7 +229,7 @@ local function offersTravel(npc)
 end
 
 -- Imperial carriages
----@param object tes3creature|tes3npc
+---@param object tes3object|tes3creature|tes3npc
 local function isCarriage(object)
 	return object.id:match("_[Hh]rs") and object.mesh:match("_[Hh]orse")
 end
@@ -239,12 +239,12 @@ end
 function util.isBadWeatherNPC(npcRef)
 	local npc = npcRef.object
 	local race = npc.race.id
-	local offersTravel = offersTravel(npcRef)
-	local is = offersTravel
+	local travelAgent = offersTravel(npcRef)
+	local is = travelAgent
 		or config.ignoresBadWeatherRace[race]
 		or config.ignoresBadWeatherClass[npc.class.id]
 		or isCarriage(npc)
-	log:trace("%s, %s%s is inclement weather NPC? %s", npc.name, race, offersTravel and ", travel agent" or "", is)
+	log:trace("%s, %s%s is inclement weather NPC? %s", npc.name, race, travelAgent and ", travel agent" or "", is)
 	return is
 end
 

@@ -56,16 +56,16 @@ end
 
 ---@param cell tes3cell
 local function checkEnteredPublicHouse(cell)
-	local publicHouse = publicHouse.getPublicHouse(cell)
-	if not publicHouse then return end
+	local publicCell = publicHouse.getPublicHouse(cell)
+	if not publicCell then return end
 
-	local typeOfPub = publicHouse.type
+	local typeOfPub = publicCell.type
 	local pubTypeName = table.find(enum.publicHouse, typeOfPub) --[[@as string]]
-	local msg = string.format("Entering public space %s, a%s %s in the town of %s.", publicHouse.name,
-		util.vowel(pubTypeName), pubTypeName:gsub("s$", ""), publicHouse.city)
+	local msg = string.format("Entering public space %s, a%s %s in the town of %s.", publicCell.name,
+		util.vowel(pubTypeName), pubTypeName:gsub("s$", ""), publicCell.city)
 
 	-- TODO: check for more servicers, not just proprietor
-	local handle = publicHouse.proprietor
+	local handle = publicCell.proprietor
 	if handle and handle:valid() and util.isServicer(handle:getObject()) then
 		local npc = handle:getObject().object
 		msg = msg .. string.format(" Talk to %s, %s for services.", npc.name, npc.class)
