@@ -26,7 +26,7 @@ function npcEvaluator.calculateWorth(npc, merchantCell)
 
 
 	-- calculate value of objects sold by NPC in the cell, and add it to barter
-	if merchantCell then -- if we pass a cell argument
+	if merchantCell then                                                  -- if we pass a cell argument
 		for box in merchantCell:iterateReferences(tes3.objectType.container) do -- loop over each container
 			for item in tes3.iterate(box.inventory or {}) do
 				---@cast item tes3itemStack
@@ -42,13 +42,12 @@ function npcEvaluator.calculateWorth(npc, merchantCell)
 	for _, v in pairs(worth) do
 		total = total + v
 	end
-	log:debug("Calculated worth of %s for %s", total, npc.object.name)
+	log:trace("Calculated worth of %s for %s", total, npc.object.name)
 
 	-- Then add it to the table
 	worth.total = total
 
 	return worth
 end
-
 
 return npcEvaluator
