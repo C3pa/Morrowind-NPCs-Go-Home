@@ -1,8 +1,8 @@
 # NPCs Go Home #
 
-A no-longer-lightweight fork of [OEA's Lightweight Lua Scheduling](https://www.nexusmods.com/morrowind/mods/48584) version 1.1 (I implemented most of the changes from 1.2 though)
+A fork of [Celediel's NPCs Go Home](https://github.com/celediel/Morrowind-NPCs-Go-Home). This is a continuation of their work with the intention of fixing the remiaining issues and adding new features as well. Some initial work has been done to move to newer MWSE APIs. Much of the codebase was refactored to make it easier to work with. As for the functionality of the original, the basic level of moving/disabling NPCs at night as in the original now works. I also made a quick test of the nighttime door locking feature and it appears to work for me. For now I've only tested the functionality of this mod in Balmora, and becuse of that I'm not sure how many NPCs it covers in various settlements on Vvardenfell, mainland or other provinces. I consider that it can be used in regular playtroughs. Please leave any `mwse.log` files that contain errors or crashes due to this mod in the NPCs Go Home thread of the [Morrowind Modding Community Discord server](https://discord.me/mwmods).
 
-## Things I've Added, Changed or Fixed ##
+Now follows the readme of the original with some updates. Some points are still outdated:
 
 ### The "Big" Stuff ###
 
@@ -15,26 +15,23 @@ A no-longer-lightweight fork of [OEA's Lightweight Lua Scheduling](https://www.n
 
 ### Other Stuff ###
 
-- Timer for updating everything, configurable interval
+- ~~Timer for updating everything, configurable interval~~
 - Disabled NPCs are reenabled even if the option to disable NPCs is off
 - Silt Striders and pack guars are disabled as well
-- Inclement weather toggle removed, in favour of dropdown with "None" option
 - Travel agents, their silt striders, and configured races/classes optionally stay in inclement weather
 - When locking doors, cells that contain NPCs of any class on the ignore list are left alone
   - Cells that are >= 67% (configurable) one faction will be public, if that faction is on the ignore list
   - Cells of player joined factions are also public
   - Additionally, NPCs in those cells can still be interacted with
 - Cells with no NPCs are not locked
-- Ignore list now supports NPC class and faction. Any interior cell with an NPC of
-  ignored class or faction will not be locked, or have its NPCS disabled.
 
 ### Debug / Devel Stuff ###
 
-- data/positions.lua contains positions used for NPC placement in homes and public houses
-- I haven't done many as it's tedious work, so I've added debug some debug keybinds to help:
-  - ctrl + c prints to mwse.log position data sorta properly formatted for positions.lua
-  - alt + c prints to mwse.log all the current runtime data, found in common.runtimeData
-    - includes: public houses and homes found for NPCs: cells that NPCs will be moved to, needing position data
+- ~~data/positions.lua contains positions used for NPC placement in homes and public houses~~
+- ~~I haven't done many as it's tedious work, so I've added debug some debug keybinds to help:
+  - ~~ctrl + c prints to mwse.log position data sorta properly formatted for positions.lua~~
+  - ~~alt + c prints to mwse.log all the current runtime data, found in common.runtimeData~~
+    - ~~includes: public houses and homes found for NPCs: cells that NPCs will be moved to, needing position data~~
 
 ## WIP ##
 
@@ -57,4 +54,7 @@ A no-longer-lightweight fork of [OEA's Lightweight Lua Scheduling](https://www.n
 
 - ~~If NPCs in a town are moved, and the player moves far away from that town before they're moved back, then
   saves and reloads, those NPCs will probably stay moved.~~ should be fixed
-- It's probably one big bowl of spaghetti
+
+## Recommended mods
+
+- [Patch for Purists](https://www.nexusmods.com/morrowind/mods/45096). There are many NPCs with homes that are spelled differently, be it a misspelling in the NPC name or the house name. Patch for Purists fixes many of these instances. This allows this mod to correctly find homes for more NPCs. That leads to the preferred path of moving these NPCs to their homes at night instead of just disabling them. To illustrate this, in Balmora, 12 people are wandering around, with 4 of them having homes in the town. Out of these 4 instances, there are 3 misspellings.
