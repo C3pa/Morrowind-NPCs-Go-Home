@@ -28,3 +28,9 @@
 ---@field originalPackage NPCsGoHome.originalPackage?
 ---@field state NPCsGoHome.actorState|integer
 ---@field house NPCsGoHome.houseSerialized?
+
+-- A vector3 in table format
+---@class NPCsGoHome.vector3Table
+---@field x number
+---@field y number
+---@field z number
