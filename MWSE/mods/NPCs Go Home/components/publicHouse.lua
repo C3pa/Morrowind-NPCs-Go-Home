@@ -398,4 +398,8 @@ function publicHouse.getPublicHouse(cell)
 	end
 end
 
+function publicHouse.getAll()
+	return publicPlaces
+end
+
 return publicHouse

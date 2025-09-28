@@ -169,4 +169,8 @@ function housing.getHome(cellId)
 	end
 end
 
+function housing.getAll()
+	return homes
+end
+
 return housing

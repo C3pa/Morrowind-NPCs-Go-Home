@@ -15,6 +15,59 @@ local goHome = require("NPCs Go Home.modules.goHome")
 local lockDoors = require("NPCs Go Home.modules.lockDoors")
 
 
+local inspect = require("inspect")
+local inspect_METATABLE = inspect.METATABLE
+-- Taken from core\lib\logger\formatters.lua
+-- The default formatter will print the inspect result on the same line since it also sets indent to "" and
+-- newline to " ". The default options provide more human-readable, but also more verbose messages.
+local INSPECT_PARAMS = {
+	process = function(item, path)
+		if path[#path] == inspect_METATABLE then
+			-- ignore metatables
+			return
+		end
+
+
+		local ty, subtype = type(item)
+
+		-- Check if it's a `table` or `userdata` with a `__tostring` metamethod
+		if ty == "table" or ty == "userdata" then
+			-- sol types have this magic property we can (ab)use
+			if subtype then
+				return string.format('%s("%s")', subtype, item)
+			end
+
+			-- Some things incorrectly define the `__tostring` method on the object instead of its metatable.
+			-- But we'll play nice and support them anyway.
+			local tostr = item.__tostring
+			if not tostr then
+				---@type metatable|nil
+				local meta = getmetatable(item)
+
+				tostr = meta and meta.__tostring
+			end
+
+			if tostr then
+				-- sometimes people define their `__tostring` metamethods in a way that causes errors.
+				local status, str = pcall(tostr, item)
+
+				if status then
+					return str
+				end
+			end
+		end
+
+		return item
+	end
+}
+
+event.register(tes3.event.keyDown, function(e)
+	if log.level < mwse.logLevel.debug then return end
+	if not tes3.isKeyEqual({ actual = e, expected = { keyCode = tes3.scanCode.c, isAltDown = true } }) then return end
+	log:debug("publicHouses = %s", inspect(publicHouse.getAll(), INSPECT_PARAMS))
+	log:debug("homes = %s", inspect(housing.getAll(), INSPECT_PARAMS))
+end)
+
 local function message(...)
 	if config.showMessages then
 		tes3.messageBox(...)
