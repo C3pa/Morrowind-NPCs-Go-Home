@@ -313,6 +313,15 @@ local function exploreCity()
 end
 
 
+local function onLoadedOrCellChanged()
+	local cell = tes3.player.cell
+	if cell.isInterior then return end
+	exploreCity()
+end
+event.register(tes3.event.cellChanged, onLoadedOrCellChanged)
+event.register(tes3.event.loaded, onLoadedOrCellChanged)
+
+
 local factionPlace = {
 	[enum.publicHouse.guildhalls] = true,
 	[enum.publicHouse.temples] = true
