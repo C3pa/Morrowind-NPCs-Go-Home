@@ -158,13 +158,13 @@ function util.isIgnoredNPC(npcRef)
 	local isClassBlacklisted = config.classBlacklist[npc.class.id:lower()]
 	local isFollower = util.isFollower(npcRef)
 	log:trace("Checking NPC: %s (%s or %s): \z
-				isNPCBlacklisted: %s, %s isPluginBlacklisted: %s, class: &s, \z
+				isNPCBlacklisted: %s, %s isPluginBlacklisted: %s, class: %s, \z
 				isClassBlacklisted: %s, guard: %s, dead: %s, vampire: %s, werewolf: %s, \z
 				follower: %s, hostile: %s%s%s",
 		name, npcRef.object.id, npcRef.object.baseObject and npcRef.object.baseObject.id or "nil",
 		config.npcBlacklist[id], sourceMod, config.pluginBlacklist[sourceMod], npc.class,
 		isClassBlacklisted, isGuard, isDead, isVampire, isWerewolf,
-		isFollower, isHostile, isFargoth and ", fargoth active: " or "", isFargoth and tostring(isFargothActive) or "")
+		isFollower, isHostile, isFargoth and ", fargoth active: " or "", isFargoth and isFargothActive or "")
 
 
 	return config.npcBlacklist[id] or
@@ -241,9 +241,9 @@ function util.isBadWeatherNPC(npcRef)
 	local race = npc.race.id
 	local offersTravel = offersTravel(npcRef)
 	local is = offersTravel
-			   or config.ignoresBadWeatherRace[race]
-			   or config.ignoresBadWeatherClass[npc.class.id]
-			   or isCarriage(npc)
+		or config.ignoresBadWeatherRace[race]
+		or config.ignoresBadWeatherClass[npc.class.id]
+		or isCarriage(npc)
 	log:trace("%s, %s%s is inclement weather NPC? %s", npc.name, race, offersTravel and ", travel agent" or "", is)
 	return is
 end
