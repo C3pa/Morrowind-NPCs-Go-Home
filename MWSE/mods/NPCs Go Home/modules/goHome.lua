@@ -1,5 +1,4 @@
 local ActorManager = require("NPCs Go Home.components.ActorManager")
-local config = require("NPCs Go Home.config")
 local enum = require("NPCs Go Home.enum")
 local util = require("NPCs Go Home.util")
 
@@ -78,6 +77,10 @@ end
 
 function goHome.update()
 	manager:update()
+end
+
+function goHome.logActors()
+	log:debug(function() return manager:getDebugString() end)
 end
 
 return goHome

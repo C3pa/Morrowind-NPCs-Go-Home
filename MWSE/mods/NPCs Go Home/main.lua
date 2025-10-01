@@ -66,6 +66,7 @@ event.register(tes3.event.keyDown, function(e)
 	if not tes3.isKeyEqual({ actual = e, expected = { keyCode = tes3.scanCode.c, isAltDown = true } }) then return end
 	log:debug("publicHouses = %s", inspect(publicHouse.getAll(), INSPECT_PARAMS))
 	log:debug("homes = %s", inspect(housing.getAll(), INSPECT_PARAMS))
+	goHome.logActors()
 end)
 
 local function message(...)

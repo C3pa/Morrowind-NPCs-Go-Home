@@ -46,6 +46,7 @@ function Actor:new(reference, house)
 	return o
 end
 
+---@private
 ---@return NPCsGoHome.npcReferenceData
 function Actor:getData()
 	return self.reference.data.NPCsGoHome
@@ -53,6 +54,10 @@ end
 
 function Actor:getState()
 	return self:getData().state
+end
+
+function Actor:getStateName()
+	return table.find(enum.actorState, self:getData().state)
 end
 
 ---@private
@@ -128,6 +133,7 @@ function Actor:moveHome()
 	local house = self:getData().house
 	if not house then
 		self.log:error("No house found when moving an NPC home.")
+		-- TODO: try disabling the NPC here instead.
 		return
 	end
 	self.log:debug("Going home.")
@@ -207,6 +213,15 @@ function Actor:update(isNight, isBadWeather)
 	end
 
 	self:goBack()
+end
+
+function Actor:getDebugString()
+	return string.format("[%q] = {\n\t\tcell = %s,\n\t\tstate = %s,\n\t\tdata = %s\n\t}",
+		self:getReference().id,
+		self:getReference().cell.id,
+		self:getStateName(),
+		json.encode(self:getData())
+	)
 end
 
 return Actor

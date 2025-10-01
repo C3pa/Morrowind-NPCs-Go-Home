@@ -62,4 +62,14 @@ function ActorManager:clearAllActors()
 	self:clearAll()
 end
 
+function ActorManager:getDebugString()
+	if log.level < mwse.logLevel.debug then return end
+	local msg = { "Actors = {" }
+	for actor in self:iterate() do
+		table.insert(msg, string.format("\t%s,", actor:getDebugString()))
+	end
+	table.insert(msg, "}")
+	return table.concat(msg, "\n")
+end
+
 return ActorManager
