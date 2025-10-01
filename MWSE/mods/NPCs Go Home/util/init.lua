@@ -251,7 +251,7 @@ end
 ---@param creature tes3reference
 function util.isPet(creature)
 	local obj = creature.baseObject and creature.baseObject or creature.object
-
+	-- https://github.com/MWSE/morrowind-nexus-lua-dump/blob/fd9667f510cd15e5eba217ffc3486f599903af0f/lua/Peaceful%20Pets/Peaceful%20Pets-47956-1-1a-1671012827/MWSE/mods/Danae/PeacefulPets/main.lua#L4
 	-- TODO: more pets?
 	-- Pack guars
 	if obj.id:match("guar") and obj.mesh:match("pack") then
