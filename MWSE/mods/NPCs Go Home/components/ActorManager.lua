@@ -40,6 +40,7 @@ function ActorManager:addActor(actorRef, cell, actorType)
 	end
 	local actor = Actor:new(actorRef, house)
 	self.actors[actorRef] = actor
+	actor:update(util.isNight(), util.isInclementWeather())
 end
 
 function ActorManager:update()
