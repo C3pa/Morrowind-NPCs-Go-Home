@@ -1,4 +1,5 @@
 local config = require("NPCs Go Home.config")
+local publicHouse = require("NPCs Go Home.components.publicHouse")
 local util = require("NPCs Go Home.util")
 
 
