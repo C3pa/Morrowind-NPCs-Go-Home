@@ -9,6 +9,8 @@ local lockDoors = {}
 
 local prisonMarkerId = "PrisonMarker"
 local cityMatch = "^(%w+), (.*)"
+local lockLow = 5
+local lockHigh = 20
 
 ---@param internalCellId string
 ---@param externalCellId string
@@ -37,16 +39,20 @@ end
 ---@param door tes3reference
 ---@param homeCellId string
 local function isIgnoredDoor(door, homeCellId)
+	-- Don't lock non-cell change doors.
+	if not util.isTeleportDoor(door) then
+		return true
+	end
+
+	if tes3.getLocked({ reference = door }) then
+		return true
+	end
+
 	-- Don't lock prison markers.
 	if door.id == prisonMarkerId then
 		return true
 	end
 
-	-- Don't lock non-cell change doors.
-	if not util.isTeleportDoor(door) then
-		log:trace("Non-Cell-change door %s, ignoring", door.id)
-		return true
-	end
 
 	-- We use this a lot, so set a reference to it.
 	local dest = door.destination.cell
@@ -84,42 +90,22 @@ end
 
 ---@param cell tes3cell
 local function lockDoorsInCell(cell)
-	for door in cell:iterateReferences(tes3.objectType.door) do
+	for door in cell:iterateReferences(tes3.objectType.door, false) do
 		if isIgnoredDoor(door, cell.id) then
 			goto continue
 		end
-
-		if not door.data.NPCsGoHome then
-			door.data.NPCsGoHome = {}
-		end
-
-		-- Don't mess around with doors that are already locked
-		-- the one time I specifically don't want to use [ if not thing ]
-		if door.data.NPCsGoHome.alreadyLocked == nil then
-			door.data.NPCsGoHome.alreadyLocked = tes3.getLocked({ reference = door })
-		end
-
-		log:trace("Found %slocked %s with destination %s",
-			door.data.NPCsGoHome.alreadyLocked and "" or "un", door.id, door.destination.cell.id)
-
-		-- It's not a door that's already locked or one we've already touched, so lock it.
-		if not door.data.NPCsGoHome.alreadyLocked and not door.data.NPCsGoHome.modified then
-			log:debug("Locking: %s to %s", door.object.name, door.destination.cell.id)
-
-			-- TODO: pick this better
-			tes3.lock({ reference = door, level = math.random(25, 100) })
-			door.data.NPCsGoHome.modified = true
-		end
-
-		log:trace("New lock status: %s", tes3.getLocked({ reference = door }))
+		local data = table.getset(door.data, "NPCsGoHome", {}) --[[@as NPCsGoHome.doorReferenceData]]
+		data.locked = true
+		tes3.lock({ reference = door, level = math.random(lockLow, lockHigh) * 5 })
+		log:debug("Locking: %s to %s", door.object.name, door.destination.cell.id)
 
 		:: continue ::
 	end
 end
 
 ---@param cell tes3cell
-function lockDoors.processDoors(cell)
-	log:info("Looking for doors to process in cell: %s", cell.id)
+local function processDoors(cell)
+	log:debug("Looking for doors to process in cell: %s", cell.id)
 
 	local isNight = util.isNight()
 
@@ -131,8 +117,8 @@ function lockDoors.processDoors(cell)
 	-- Unlock, don't need all the extra overhead that comes along with isIgnoredDoor() here
 	for door in cell:iterateReferences(tes3.objectType.door) do
 		-- Only unlock doors that we locked before
-		if door.data and door.data.NPCsGoHome and door.data.NPCsGoHome.modified then
-			door.data.NPCsGoHome.modified = false
+		if door.data and door.data.NPCsGoHome and door.data.NPCsGoHome.locked then
+			door.data.NPCsGoHome = nil
 
 			tes3.setLockLevel({ reference = door, level = 0 })
 			tes3.unlock({ reference = door })
@@ -140,8 +126,14 @@ function lockDoors.processDoors(cell)
 			log:debug("Unlocking: %s to %s", door.object.name, door.destination.cell.id)
 		end
 	end
+end
 
-	log:trace("Done with doors")
+function lockDoors.update()
+	for _, cell in ipairs(tes3.getActiveCells()) do
+		if not cell.isInterior then
+			processDoors(cell)
+		end
+	end
 end
 
 return lockDoors

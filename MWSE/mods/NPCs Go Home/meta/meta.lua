@@ -21,13 +21,16 @@
 ---@field position NPCsGoHome.vector3Table
 ---@field orientation NPCsGoHome.vector3Table
 
--- TODO: consider removing disabled field
+-- TODO: consider removing disabled field since it's encoded by the state field
 ---@class NPCsGoHome.npcReferenceData
 ---@field disabled boolean
 ---@field routine NPCsGoHome.routine
 ---@field originalPackage NPCsGoHome.originalPackage?
 ---@field state NPCsGoHome.actorState|integer
 ---@field house NPCsGoHome.houseSerialized?
+
+---@class NPCsGoHome.doorReferenceData
+---@field locked boolean This field is set to true if the door was locked by this mod.
 
 -- A vector3 in table format
 ---@class NPCsGoHome.vector3Table

@@ -150,23 +150,26 @@ local function onLoaded()
 	tes3.player.data.NPCsGoHome = tes3.player.data.NPCsGoHome or {}
 
 	goHome.onLoaded()
-
+	lockDoors.update()
 	if not updateTimer or updateTimer.state ~= timer.active then
 		updateTimer = timer.start({
 			type = timer.game,
 			duration = 1 / 4,
 			iterations = -1,
-			callback = goHome.update
+			callback = function()
+				goHome.update()
+				lockDoors.update()
+			end
 		})
 	end
 end
 event.register(tes3.event.loaded, onLoaded)
-
-event.register(tes3.event.cellACtivated, goHome.onCellActivated)
+event.register(tes3.event.cellActivated, goHome.onCellActivated)
 
 ---@param e cellChangedEventData
 local function onCellChanged(e)
 	denyService.onCellChanged(e)
+	lockDoors.update()
 	checkEnteredNPCHome(e.cell)
 	checkEnteredPublicHouse(e.cell)
 end
