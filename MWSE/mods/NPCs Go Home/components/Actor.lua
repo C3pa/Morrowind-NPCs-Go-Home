@@ -197,22 +197,24 @@ function Actor:update(isNight, isBadWeather)
 		self:goBack()
 		return
 	end
+	
 	self.log:debug("UpdateAfter")
 	local goHome = isNight or isBadWeather
 	-- TODO: restore util.isBadWeatherNPC check. Those NPCs shouldn't be disabled on bad weather.
 	-- + config.keepBadWeatherNPCs
-	if goHome then
-		if config.moveNPCs and self:canGoHome() then
-			self.log:debug("Calling moveHome")
-			self:moveHome()
-		else
-			self.log:debug("Calling disable")
-			self:disable()
-		end
+	if not goHome then
+		self:goBack()
 		return
 	end
 
-	self:goBack()
+	if not self:canGoHome() then return end
+	if config.moveNPCs then
+		self.log:debug("Calling moveHome")
+		self:moveHome()
+	else
+		self.log:debug("Calling disable")
+		self:disable()
+	end
 end
 
 function Actor:getDebugString()
