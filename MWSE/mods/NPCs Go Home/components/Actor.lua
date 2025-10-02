@@ -11,7 +11,7 @@ local Actor = Class:new()
 Actor.__index = Actor
 
 ---@param reference tes3reference
----@param house? NPCsGoHome.house
+---@param house? NPCsGoHome.house|boolean
 ---@return NPCsGoHome.Actor
 function Actor:new(reference, house)
 	local o = Class.new(self, {
