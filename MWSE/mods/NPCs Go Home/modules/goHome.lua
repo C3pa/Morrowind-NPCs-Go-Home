@@ -24,7 +24,15 @@ local function isValidNPC(ref)
 			return false
 		end
 	end
-	return not util.isIgnoredNPC(ref)
+	if util.isIgnoredNPC(ref) then
+		return false
+	end
+	-- We always attach NPCsGoHome table to ref.data if the NPC
+	-- is moved to and interior cell by this mod.
+	if ref.cell.isInterior and not ref.data.NPCsGoHome then
+		return false
+	end
+	return true
 end
 
 local goHome = {}
