@@ -70,12 +70,10 @@ end
 
 ---@param ref tes3reference
 local function isWerewolf(ref)
-	-- if ref.mobile.werewolf then
-	-- 	return true
-	-- end
-
-	local werewolfVisionSpellId = "werewolf vision"
-	return mwscript.getSpellEffects({ reference = ref, spell = werewolfVisionSpellId })
+	if ref.mobile and ref.mobile.werewolf then
+		return true
+	end
+	return false
 end
 
 ---@param ref tes3reference
