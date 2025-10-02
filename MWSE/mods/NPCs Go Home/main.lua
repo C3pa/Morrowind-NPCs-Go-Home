@@ -68,6 +68,7 @@ event.register(tes3.event.keyDown, function(e)
 	log:debug("publicHouses = %s", inspect(publicHouse.getAll(), INSPECT_PARAMS))
 	log:debug("homes = %s", inspect(housing.getAll(), INSPECT_PARAMS))
 	goHome.logActors()
+	tes3.messageBox("Logged debug info to mwse.log")
 end)
 
 local function message(...)
