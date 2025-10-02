@@ -4,29 +4,6 @@ local nameUtil = require("NPCs Go Home.util.nameUtil")
 
 local log = mwse.Logger.new()
 
--- Very Todd workaround
----@param id string
-local function getFightFromSpawnedReference(id)
-	-- Spawn a reference of the given id in toddtest
-	local toddTest = tes3.getCell({ id = "toddtest" })
-	log:debug("Spawning %s in %s", id, toddTest.id)
-
-	local ref = tes3.createReference({
-		object = id,
-		cell = toddTest,
-		-- cell = tes3.getPlayerCell(),
-		position = tes3vector3.new(0, 0, 0),
-		-- position = {0, 0, 10000},
-		orientation = tes3vector3.new(0, 0, 0)
-	})
-
-	local fight = ref.mobile.fight
-
-	log:debug("Got fight of %s, time to yeet %s", fight, id)
-	ref:delete()
-	return fight
-end
-
 ---@param ref tes3reference
 local function isDead(ref)
 	if ref.isDead then
@@ -61,10 +38,11 @@ local function isHostile(ref)
 	if ref.mobile and ref.mobile.fight > 70 then
 		return true
 	end
-	-- local fight = getFightFromSpawnedReference(obj.id) -- ! calling this hundreds of times is bad for performance lol
-	-- if (fight or 0) > 70 then
-	-- 	return true
-	-- end
+
+	if ref.object.aiConfig.fight > 70 then
+		return true
+	end
+
 	return false
 end
 
