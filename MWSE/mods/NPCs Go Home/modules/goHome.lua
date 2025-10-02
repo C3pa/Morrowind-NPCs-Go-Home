@@ -40,32 +40,56 @@ function goHome.onReferenceActivated(e)
 	end
 end
 
+---@param cell tes3cell
+local function scanActorsInInteriorCell(cell)
+	for npcRef in cell:iterateReferences(tes3.objectType.npc) do
+		if isValidNPC(npcRef) then
+			manager:addActor(npcRef, cell, enum.actorType.npc)
+		end
+	end
+	for creatureRef in cell:iterateReferences(tes3.objectType.creature) do
+		if util.isPet(creatureRef) then
+			manager:addActor(creatureRef, cell, enum.actorType.creature)
+		end
+	end
+
+	-- TODO: make this feature optional
+	-- For Silt Striders we only disable them in towns. There are mods that add Silt Striders in the wilderness.
+	-- We don't disable those. Examples of such mods:
+	-- https://www.nexusmods.com/morrowind/mods/49103
+	-- https://www.nexusmods.com/morrowind/mods/53537
+	if cell.restingIsIllegal then
+		for activator in cell:iterateReferences(tes3.objectType.activator) do
+			if util.isSiltStrider(activator) then
+				manager:addActor(activator, cell, enum.actorType.siltStrider)
+			end
+		end
+	end
+end
+
+---@param cell tes3cell
+local function scanActorsInExteriorCell(cell)
+	scanActorsInInteriorCell(cell)
+	-- We don't scan cells with disabled doors. We consider these inaccessible.
+	-- For example Chargen Boat.
+	for door in cell:iterateReferences(tes3.objectType.door, false) do
+		if util.isTeleportDoor(door) then
+			scanActorsInInteriorCell(door.destination.cell)
+		end
+	end
+end
+
+---@param e cellActivatedEventData
+function goHome.onCellActivated(e)
+	local cell = e.cell
+	if not cell.isInterior then return end
+	scanActorsInExteriorCell(cell)
+end
+
 function goHome.onLoaded()
 	manager:clearAllActors()
 	for _, cell in ipairs(tes3.getActiveCells()) do
-		for npcRef in cell:iterateReferences(tes3.objectType.npc) do
-			if isValidNPC(npcRef) then
-				manager:addActor(npcRef, cell, enum.actorType.npc)
-			end
-		end
-		for creatureRef in cell:iterateReferences(tes3.objectType.creature) do
-			if util.isPet(creatureRef) then
-				manager:addActor(creatureRef, cell, enum.actorType.creature)
-			end
-		end
-
-		-- TODO: make this feature optional
-		-- For Silt Striders we only disable them in towns. There are mods that add Silt Striders in the wilderness.
-		-- We don't disable those. Examples of such mods:
-		-- https://www.nexusmods.com/morrowind/mods/49103
-		-- https://www.nexusmods.com/morrowind/mods/53537
-		if cell.restingIsIllegal then
-			for activator in cell:iterateReferences(tes3.objectType.activator) do
-				if util.isSiltStrider(activator) then
-					manager:addActor(activator, cell, enum.actorType.siltStrider)
-				end
-			end
-		end
+		scanActorsInExteriorCell(cell)
 	end
 	manager:update()
 end

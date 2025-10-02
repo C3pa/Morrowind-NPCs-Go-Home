@@ -161,6 +161,8 @@ local function onLoaded()
 end
 event.register(tes3.event.loaded, onLoaded)
 
+event.register(tes3.event.cellACtivated, goHome.onCellActivated)
+
 ---@param e cellChangedEventData
 local function onCellChanged(e)
 	denyService.onCellChanged(e)
