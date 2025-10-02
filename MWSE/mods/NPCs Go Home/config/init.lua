@@ -50,6 +50,8 @@ local default = {
 		["abotwaterlife.esm"] = true,
 	},
 	classBlacklist = {
+		-- TODO: consider adding slaves
+		-- ["slave"] = true,
 		["dreamers"] = true,
 	},
 	-- Cells of these factions are always considered public and the player doesn't need to be a memeber

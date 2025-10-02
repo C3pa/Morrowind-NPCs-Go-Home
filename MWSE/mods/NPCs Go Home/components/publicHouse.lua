@@ -1,3 +1,8 @@
+-- Cells that aren't considered public but probably shoud be:
+-- - Balmora Guild of Fighters
+-- - Balmora Morag Tong Guild
+-- - Balmora Hlaalu Council Manor
+
 local config = require("NPCs Go Home.config")
 local enum = require("NPCs Go Home.enum")
 local nameUtil = require("NPCs Go Home.util.nameUtil")

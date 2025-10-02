@@ -12,7 +12,9 @@ local log = mwse.Logger.new()
 ---@param ref tes3reference
 ---@return boolean valid
 local function isValidNPC(ref)
-	-- TODO: Consider checking if the actor has a AI Wander package here.
+	-- TODO: Consider checking
+	-- * If the actor has a AI Wander package here.
+	-- * Exclude actors that have an interior cell as their default position
 
 	local npc = ref.baseObject --[[@as tes3npc]]
 	local lowerId = string.lower(npc.id)

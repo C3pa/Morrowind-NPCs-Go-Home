@@ -145,6 +145,8 @@ function housing.pickHomeForNPC(cell, npcRef)
 		-- to put the NPCs.
 
 		-- TODO other option is to traverse cell's pathgrid and take the coords of a pathgrid node.
+		-- Optimally, that would be the pathgrid node closest to a bed for homes. For public houses it
+		-- needs a different algorithm
 
 		local position, orientation
 		for ref in cell:iterateReferences(tes3.objectType.static) do
