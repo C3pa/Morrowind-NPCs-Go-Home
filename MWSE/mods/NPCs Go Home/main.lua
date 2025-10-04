@@ -165,6 +165,7 @@ local function onLoaded()
 end
 event.register(tes3.event.loaded, onLoaded)
 event.register(tes3.event.cellActivated, goHome.onCellActivated)
+event.register(tes3.event.uiObjectTooltip, lockDoors.onUiObjectTooltip)
 
 ---@param e cellChangedEventData
 local function onCellChanged(e)

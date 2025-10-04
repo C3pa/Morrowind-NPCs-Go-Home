@@ -103,6 +103,15 @@ local function lockDoorsInCell(cell)
 	end
 end
 
+-- Returns `true` if the door was locked by this module.
+---@param reference tes3reference
+local function isLocked(reference)
+	if reference.data and reference.data.NPCsGoHome and reference.data.NPCsGoHome.locked then
+		return true
+	end
+	return false
+end
+
 ---@param cell tes3cell
 local function processDoors(cell)
 	log:debug("Looking for doors to process in cell: %s", cell.id)
@@ -117,7 +126,7 @@ local function processDoors(cell)
 	-- Unlock, don't need all the extra overhead that comes along with isIgnoredDoor() here
 	for door in cell:iterateReferences(tes3.objectType.door) do
 		-- Only unlock doors that we locked before
-		if door.data and door.data.NPCsGoHome and door.data.NPCsGoHome.locked then
+		if isLocked(door) then
 			door.data.NPCsGoHome = nil
 
 			tes3.setLockLevel({ reference = door, level = 0 })
@@ -134,6 +143,18 @@ function lockDoors.update()
 			processDoors(cell)
 		end
 	end
+end
+
+local tooltipId = tes3ui.registerID("NPCsGoHome_tooltip_label")
+
+---@param e uiObjectTooltipEventData
+function lockDoors.onUiObjectTooltip(e)
+	if e.object.objectType ~= tes3.objectType.door or not isLocked(e.reference) then return end
+	local tooltip = e.tooltip
+	tooltip:createLabel({
+		id = tooltipId,
+		text = string.format("Closed. Open from %s to %s.", config.openTime, config.closeTime)
+	})
 end
 
 return lockDoors

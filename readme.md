@@ -47,7 +47,7 @@ Now follows the readme of the original with some updates. Some points are still 
 - Pick temple for the poorest NPCs, or classed inns based on NPC/inn "worth"
 - Only disable NPCs while the player isn't looking. [This](https://mwse.github.io/MWSE/types/niCamera/#worldpointtoscreenpoint) function will return nil if the actor's position isn't in the camera view.
 - Make NPCs walk to their home using: tes3.setAIActivate/tes3.setAITravel/npcRef:activate(doorRef)
-- Consider making NPCs that are always in their home to have  a schedule to walk around the town a bit.
+- Consider making NPCs that are always in their home to have a schedule to walk around the town a bit.
 
 ## Known issues ##
 
